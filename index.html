@@ -130,8 +130,14 @@
         <div class="p-5 border-b border-white/10">
             <h1 class="text-xl font-semibold mb-6 tracking-tight">Signal Scanner</h1>
             
+            <!-- Ticker Search -->
+            <div class="mb-4">
+                <input type="text" id="filter-ticker" placeholder="Search Ticker..." 
+                    class="w-full text-xs p-2 rounded-lg glass-input">
+            </div>
+
             <!-- Filters -->
-            <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="grid grid-cols-2 gap-3 text-xs">
                 <div>
                     <label class="text-white/50 mb-1 block">Trading Setup</label>
                     <select id="filter-setup" class="w-full p-2 rounded-lg glass-input appearance-none">
@@ -155,6 +161,22 @@
                     <select id="filter-traj" class="w-full p-2 rounded-lg glass-input appearance-none">
                         <option value="All">All</option>
                     </select>
+                </div>
+                <!-- Subreddit Filter -->
+                <div class="col-span-2">
+                    <label class="text-white/50 mb-1 block">Subreddit Activity (> 0 Mentions)</label>
+                    <select id="filter-subreddit" class="w-full p-2 rounded-lg glass-input appearance-none">
+                        <option value="All">All</option>
+                    </select>
+                </div>
+                <!-- Mentions Slider -->
+                <div class="col-span-2 mt-1">
+                    <div class="flex justify-between items-center text-white/50 mb-2">
+                        <label>Min Total Mentions</label>
+                        <span id="mentions-val" class="font-semibold text-white">0</span>
+                    </div>
+                    <input type="range" id="filter-mentions" min="0" max="100" value="0" 
+                        class="w-full accent-emerald-500 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer">
                 </div>
             </div>
         </div>
@@ -287,31 +309,46 @@
 
     <!-- Modal for Expanded Summary -->
     <div id="summary-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-        <div class="glass-panel p-8 rounded-2xl border border-white/10 max-w-2xl w-full relative shadow-2xl">
+        <div class="glass-panel p-6 md:p-8 rounded-2xl border border-white/10 max-w-3xl w-full relative shadow-2xl flex flex-col">
             <!-- Close Button -->
-            <button onclick="closeSummaryModal()" class="absolute top-4 right-4 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-colors">
+            <button onclick="closeSummaryModal()" class="absolute top-4 right-4 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-colors z-10">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
             
-            <div class="mb-2">
+            <div class="mb-2 text-center">
                 <span class="text-xs font-semibold text-white/50 uppercase tracking-wider">Retail Sentiment Summary</span>
             </div>
-            <h3 id="modal-title" class="text-xl font-bold mb-6 uppercase tracking-widest text-emerald-400">Short Term Bull</h3>
             
-            <div class="max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                <p id="modal-text" class="text-base leading-relaxed text-white/90 whitespace-pre-wrap">Summary text will appear here.</p>
+            <div class="flex items-center justify-between mt-2">
+                <!-- Left Arrow -->
+                <button onclick="prevSummary()" class="p-2 rounded-full hover:bg-white/10 transition-colors z-10 flex-shrink-0 text-white/50 hover:text-white">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+
+                <div class="flex-1 px-4 md:px-8 text-center flex flex-col max-h-[60vh]">
+                    <h3 id="modal-title" class="text-xl font-bold mb-6 uppercase tracking-widest text-emerald-400">Short Term Bull</h3>
+                    <div class="overflow-y-auto pr-2 custom-scrollbar text-left flex-1">
+                        <p id="modal-text" class="text-base md:text-lg leading-relaxed text-white/90 whitespace-pre-wrap">Summary text will appear here.</p>
+                    </div>
+                </div>
+
+                <!-- Right Arrow -->
+                <button onclick="nextSummary()" class="p-2 rounded-full hover:bg-white/10 transition-colors z-10 flex-shrink-0 text-white/50 hover:text-white">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
             </div>
         </div>
     </div>
 
     <script>
-        const mockCsvData = `Date,Symbol,Total Mentions,ST Sentiment,LT Sentiment,Trading_Setup,Trajectory_Setup,ST_NSS_Norm,LT_NSS_Norm,Setup_Duration,RVol,ST Bull Summary,ST Bear Summary,LT Bull Summary,LT Bear Summary
-2026-04-10,AAOI,8,Very Bull,Very Bull,Breakout,Upward,1.0,1.0,1,1.5,Strong upside momentum detected on recent earnings.,Overbought conditions might trigger slight pullback.,Positioned well for next gen fiber rollouts.,Supply chain constraints remain a risk factor.
-2026-04-10,AAPL,150,Bull,Bull,Consolidation,Stable,0.8,0.7,3,0.9,Approaching key support levels offering entry point.,Regulatory headwinds continue to suppress short term growth.,Services revenue expanding margins steadily.,Hardware supercycle relies heavily on uncertain consumer demand.`;
+        const mockCsvData = `Date,Symbol,Total Mentions,stocks,wallstreetbets,options,ST Sentiment,LT Sentiment,Trading_Setup,Trajectory_Setup,ST_NSS_Norm,LT_NSS_Norm,Setup_Duration,RVol,ST Bull Summary,ST Bear Summary,LT Bull Summary,LT Bear Summary
+2026-04-10,AAOI,8,2,6,0,Very Bull,Very Bull,Breakout,Upward,1.0,1.0,1,1.5,Strong upside momentum detected on recent earnings.,Overbought conditions might trigger slight pullback.,Positioned well for next gen fiber rollouts.,Supply chain constraints remain a risk factor.
+2026-04-10,AAPL,150,50,80,20,Bull,Bull,Consolidation,Stable,0.8,0.7,3,0.9,Approaching key support levels offering entry point.,Regulatory headwinds continue to suppress short term growth.,Services revenue expanding margins steadily.,Hardware supercycle relies heavily on uncertain consumer demand.`;
 
         let globalData = [];
         let filteredData = [];
         let currentSymbol = null;
+        let subredditsList = [];
 
         // Summary Card State
         let summaryIdx = 0;
@@ -328,10 +365,18 @@
         });
 
         function setupFilterListeners() {
-            const filters = ['setup', 'st-sent', 'lt-sent', 'traj'];
+            const filters = ['setup', 'st-sent', 'lt-sent', 'traj', 'subreddit'];
             filters.forEach(f => {
                 document.getElementById(`filter-${f}`).addEventListener('change', applyFilters);
             });
+            
+            document.getElementById('filter-ticker').addEventListener('input', applyFilters);
+            
+            const mentionsSlider = document.getElementById('filter-mentions');
+            mentionsSlider.addEventListener('input', (e) => {
+                document.getElementById('mentions-val').textContent = e.target.value;
+            });
+            mentionsSlider.addEventListener('change', applyFilters);
         }
 
         async function loadData() {
@@ -371,18 +416,51 @@
             const stSents = new Set();
             const ltSents = new Set();
             const trajs = new Set();
+            let maxMentions = 0;
+
+            // Dynamically identify subreddits based on column position (between Total Mentions and ST Sentiment related fields)
+            if (globalData.length > 0) {
+                const keys = Object.keys(globalData[0]);
+                const startIdx = keys.indexOf('Total Mentions');
+                const endIdx = keys.findIndex(k => k.startsWith('ST ') || k === 'ST Sentiment');
+                
+                if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx + 1) {
+                    subredditsList = keys.slice(startIdx + 1, endIdx);
+                } else {
+                    // Fallback to known subreddits if headers differ
+                    const knownSubs = ['stocks', 'stockmarket', 'ValueInvesting', 'SecurityAnalysis', 'options', 'unusual_whales', 'Daytrading', 'swingtrading', 'wallstreetbets', 'stockstobuytoday', 'DeepMarketScan', 'investing', 'thetagang', 'smallstreetbets'];
+                    subredditsList = keys.filter(k => knownSubs.includes(k));
+                }
+            }
 
             globalData.forEach(row => {
                 if (row['Trading_Setup']) setups.add(row['Trading_Setup']);
                 if (row['ST Sentiment']) stSents.add(row['ST Sentiment']);
                 if (row['LT Sentiment']) ltSents.add(row['LT Sentiment']);
                 if (row['Trajectory_Setup']) trajs.add(row['Trajectory_Setup']);
+                
+                const mentions = parseInt(row['Total Mentions']) || 0;
+                if (mentions > maxMentions) maxMentions = mentions;
             });
 
             fillSelect('filter-setup', setups);
             fillSelect('filter-st-sent', stSents);
             fillSelect('filter-lt-sent', ltSents);
             fillSelect('filter-traj', trajs);
+            
+            const subSelect = document.getElementById('filter-subreddit');
+            subSelect.innerHTML = '<option value="All">All</option>';
+            subredditsList.forEach(sub => {
+                const opt = document.createElement('option');
+                opt.value = sub;
+                opt.textContent = sub;
+                subSelect.appendChild(opt);
+            });
+
+            const mentionsSlider = document.getElementById('filter-mentions');
+            mentionsSlider.max = maxMentions;
+            mentionsSlider.value = 0;
+            document.getElementById('mentions-val').textContent = '0';
         }
 
         function fillSelect(id, set) {
@@ -401,12 +479,24 @@
             const stSent = document.getElementById('filter-st-sent').value;
             const ltSent = document.getElementById('filter-lt-sent').value;
             const traj = document.getElementById('filter-traj').value;
+            const subreddit = document.getElementById('filter-subreddit').value;
+            const minMentions = parseInt(document.getElementById('filter-mentions').value) || 0;
+            const tickerSearch = document.getElementById('filter-ticker').value.trim().toLowerCase();
 
             filteredData = globalData.filter(row => {
-                return (setup === 'All' || row['Trading_Setup'] === setup) &&
-                       (stSent === 'All' || row['ST Sentiment'] === stSent) &&
-                       (ltSent === 'All' || row['LT Sentiment'] === ltSent) &&
-                       (traj === 'All' || row['Trajectory_Setup'] === traj);
+                const symbolMatch = row.Symbol.toLowerCase().includes(tickerSearch);
+                const setupMatch = setup === 'All' || row['Trading_Setup'] === setup;
+                const stSentMatch = stSent === 'All' || row['ST Sentiment'] === stSent;
+                const ltSentMatch = ltSent === 'All' || row['LT Sentiment'] === ltSent;
+                const trajMatch = traj === 'All' || row['Trajectory_Setup'] === traj;
+                const mentionsMatch = (parseInt(row['Total Mentions']) || 0) >= minMentions;
+                
+                let subredditMatch = true;
+                if (subreddit !== 'All') {
+                    subredditMatch = (parseFloat(row[subreddit]) || 0) > 0;
+                }
+
+                return symbolMatch && setupMatch && stSentMatch && ltSentMatch && trajMatch && mentionsMatch && subredditMatch;
             });
 
             renderList();
@@ -500,12 +590,18 @@
         // --- Summary Card Navigation & Modal ---
         function renderSummaryCard() {
             const data = currentSummaries[summaryIdx];
-            const titleEl = document.getElementById('summary-title');
             
+            // Update Card
+            const titleEl = document.getElementById('summary-title');
             titleEl.textContent = data.title;
             titleEl.className = `text-base font-bold mb-4 uppercase tracking-widest ${data.color}`;
-            
             document.getElementById('summary-text').textContent = data.text;
+            
+            // Update Modal (in case it is open)
+            const modalTitleEl = document.getElementById('modal-title');
+            modalTitleEl.textContent = data.title;
+            modalTitleEl.className = `text-xl font-bold mb-6 uppercase tracking-widest ${data.color}`;
+            document.getElementById('modal-text').textContent = data.text;
             
             // Update dots
             for(let i=0; i<4; i++) {
@@ -529,12 +625,8 @@
         }
 
         function openSummaryModal() {
-            const data = currentSummaries[summaryIdx];
-            const titleEl = document.getElementById('modal-title');
-            titleEl.textContent = data.title;
-            titleEl.className = `text-xl font-bold mb-6 uppercase tracking-widest ${data.color}`;
-            document.getElementById('modal-text').textContent = data.text;
-            
+            // Render to ensure UI matches current state
+            renderSummaryCard();
             document.getElementById('summary-modal').classList.remove('hidden');
         }
 
