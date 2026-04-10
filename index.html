@@ -110,9 +110,9 @@
             
             <!-- Data Source Input -->
             <div class="mb-4">
-                <input type="text" id="csvUrl" placeholder="Enter raw CSV URL from GitHub..." 
+                <input type="text" id="csvUrl" placeholder="Enter CSV filename or URL..." 
                     class="w-full text-xs p-2 rounded-lg glass-input mb-2"
-                    value="">
+                    value="Today_Final_Signals.csv">
                 <button onclick="loadData()" class="w-full bg-white/10 hover:bg-white/20 transition-colors text-xs font-medium py-2 rounded-lg">
                     Load Data
                 </button>
@@ -189,21 +189,21 @@
             <div class="flex flex-col gap-6">
                 <!-- Main Chart Overview -->
                 <div class="glass-panel p-1 rounded-2xl border border-white/10 h-[500px]">
-                    <div id="tv-overview" class="w-full h-full rounded-xl overflow-hidden"></div>
+                    <div id="tv-overview" class="w-full h-full rounded-xl overflow-hidden relative"></div>
                 </div>
 
                 <!-- 2-Col Grid for Secondary Widgets -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box">
+                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative">
                         <div id="tv-info" class="w-full h-full rounded-xl overflow-hidden"></div>
                     </div>
-                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box">
+                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative">
                         <div id="tv-timeline" class="w-full h-full rounded-xl overflow-hidden"></div>
                     </div>
-                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box">
+                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative">
                         <div id="tv-technical" class="w-full h-full rounded-xl overflow-hidden"></div>
                     </div>
-                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box">
+                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative">
                         <div id="tv-financials" class="w-full h-full rounded-xl overflow-hidden"></div>
                     </div>
                 </div>
@@ -217,7 +217,6 @@
     </div>
 
     <script>
-        // Default Mock Data in case URL is not provided or fails, matching the provided schema.
         const mockCsvData = `Date,Symbol,Total Mentions,ST Sentiment,LT Sentiment,Trading_Setup,Trajectory_Setup,ST_NSS_Norm,LT_NSS_Norm,Setup_Duration,RVol
 2026-04-10,AAOI,8,Very Bull,Very Bull,Breakout,Upward,1.0,1.0,1,1.5
 2026-04-10,AAPL,150,Bull,Bull,Consolidation,Stable,0.8,0.7,3,0.9
@@ -229,11 +228,9 @@
         let filteredData = [];
         let currentSymbol = null;
 
-        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             setupFilterListeners();
-            // Load initial mock data to ensure functional UI
-            parseData(mockCsvData);
+            loadData();
         });
 
         function setupFilterListeners() {
@@ -248,7 +245,6 @@
             const listContainer = document.getElementById('stock-list');
             
             if (!url) {
-                alert("Please enter a valid CSV URL. Using default mock data.");
                 parseData(mockCsvData);
                 return;
             }
@@ -256,14 +252,17 @@
             listContainer.innerHTML = '<div class="text-center text-white/50 text-sm mt-10">Fetching remote data...</div>';
             
             try {
+                // Cache bust parameter omitted assuming file is updated statically 
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const text = await response.text();
                 parseData(text);
             } catch (error) {
                 console.error("Error fetching CSV:", error);
-                alert("Failed to load CSV. Check CORS or URL format. Reverting to mock data.");
-                parseData(mockCsvData);
+                listContainer.innerHTML = '<div class="text-center text-rose-400 text-sm mt-10">Failed to load CSV. Reverting to mock data.</div>';
+                setTimeout(() => {
+                    parseData(mockCsvData);
+                }, 1500);
             }
         }
 
@@ -272,7 +271,7 @@
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    globalData = results.data.filter(row => row.Symbol); // Ensure Symbol exists
+                    globalData = results.data.filter(row => row.Symbol && row.Symbol.trim() !== '');
                     populateFilters();
                     applyFilters();
                 }
@@ -340,7 +339,6 @@
                 
                 div.className = `p-4 rounded-xl cursor-pointer transition-all border ${isSelected ? 'bg-white/10 border-white/30' : 'bg-white/[0.02] border-white/5 hover:bg-white/5'} flex justify-between items-center`;
                 
-                // Color coding for ST Sentiment
                 let sentColor = 'text-white/50';
                 const st = row['ST Sentiment'] || '';
                 if (st.includes('Bull')) sentColor = 'text-emerald-400';
@@ -364,24 +362,20 @@
 
         function selectStock(row) {
             currentSymbol = row.Symbol;
-            renderList(); // Update selected state in list
+            renderList(); 
             
-            // Show dashboard, hide empty state
             document.getElementById('empty-state').classList.add('hidden');
             document.getElementById('dashboard-content').classList.remove('hidden');
             
-            // Mobile navigation logic
             if (window.innerWidth <= 768) {
                 document.getElementById('dashboard').style.display = 'block';
                 document.getElementById('mobile-ticker-title').textContent = row.Symbol;
                 document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' });
             }
 
-            // Populate static data
             document.getElementById('dash-symbol').textContent = row.Symbol;
             document.getElementById('dash-date').textContent = row.Date || 'Latest Data';
 
-            // Badges
             const badgesContainer = document.getElementById('dash-badges');
             badgesContainer.innerHTML = '';
             const createBadge = (text, type) => {
@@ -399,10 +393,7 @@
             ].filter(Boolean).join('');
             badgesContainer.innerHTML = badgesHTML;
 
-            // Render all metrics
             renderMetricsGrid(row);
-
-            // Inject TradingView Widgets safely
             injectTVWidgets(row.Symbol);
         }
 
@@ -410,7 +401,6 @@
             const grid = document.getElementById('metrics-grid');
             grid.innerHTML = '';
             
-            // Filter out empty or extremely long text fields to keep UI clean
             const excludedKeys = ['Symbol', 'Date', 'ST_Bullish_Text', 'ST_Bearish_Text', 'LT_Bullish_Text', 'LT_Bearish_Text'];
             
             Object.entries(dataRow).forEach(([key, value]) => {
@@ -430,12 +420,12 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // --- TradingView Injection Logic ---
-        // Dynamically creates script tags to prevent DOM block issues in SPA
         function injectTVWidgets(symbol) {
-            const tvSymbol = `NASDAQ:${symbol}`; // Fallback prefix, TV usually resolves well
+            // TradingView utilizes dynamic DOM scanning. Generating scripts dynamically 
+            // inside a single-page application requires specific structure replication.
+            const tvSymbol = `NASDAQ:${symbol}`;
 
-            // 1. Symbol Overview
+            // Overview
             renderTVWidget('tv-overview', 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js', {
                 "symbols": [[`${tvSymbol}|1D`]],
                 "chartOnly": false,
@@ -457,12 +447,12 @@
                 "valuesTracking": "1",
                 "changeMode": "price-and-percent",
                 "chartType": "area",
-                "backgroundColor": "rgba(0, 0, 0, 0)", // transparent to match glass
+                "backgroundColor": "rgba(0, 0, 0, 0)",
                 "lineWidth": 2,
                 "lineType": 0
             });
 
-            // 2. Symbol Info
+            // Info
             renderTVWidget('tv-info', 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js', {
                 "symbol": tvSymbol,
                 "width": "100%",
@@ -472,7 +462,7 @@
                 "locale": "en"
             });
 
-            // 3. Timeline
+            // Timeline
             renderTVWidget('tv-timeline', 'https://s3.tradingview.com/external-embedding/embed-widget-timeline.js', {
                 "feedMode": "symbol",
                 "symbol": tvSymbol,
@@ -484,7 +474,7 @@
                 "locale": "en"
             });
 
-            // 4. Technical Analysis
+            // Technical
             renderTVWidget('tv-technical', 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js', {
                 "interval": "1m",
                 "width": "100%",
@@ -497,7 +487,7 @@
                 "isTransparent": true
             });
 
-            // 5. Financials
+            // Financials
             renderTVWidget('tv-financials', 'https://s3.tradingview.com/external-embedding/embed-widget-financials.js', {
                 "symbol": tvSymbol,
                 "width": "100%",
@@ -511,22 +501,27 @@
 
         function renderTVWidget(containerId, scriptSrc, config) {
             const container = document.getElementById(containerId);
-            container.innerHTML = ''; // Clear previous widget instance safely
+            container.innerHTML = ''; 
 
-            const wrapper = document.createElement('div');
-            wrapper.className = 'tradingview-widget-container__widget';
-            wrapper.style.height = '100%';
-            wrapper.style.width = '100%';
+            const widgetContainer = document.createElement('div');
+            widgetContainer.className = 'tradingview-widget-container';
+            widgetContainer.style.height = '100%';
+            widgetContainer.style.width = '100%';
             
-            container.appendChild(wrapper);
+            const widgetDiv = document.createElement('div');
+            widgetDiv.className = 'tradingview-widget-container__widget';
+            widgetDiv.style.height = '100%';
+            widgetDiv.style.width = '100%';
 
             const script = document.createElement('script');
             script.type = 'text/javascript';
             script.src = scriptSrc;
             script.async = true;
-            script.innerHTML = JSON.stringify(config);
+            script.textContent = JSON.stringify(config);
             
-            container.appendChild(script);
+            widgetContainer.appendChild(widgetDiv);
+            widgetContainer.appendChild(script);
+            container.appendChild(widgetContainer);
         }
     </script>
 </body>
