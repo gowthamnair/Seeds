@@ -76,11 +76,12 @@
             overflow: hidden;
         }
 
-        /* Mobile specific view transitions */
+        /* State-based Mobile Routing View transitions */
         @media (max-width: 768px) {
             body {
                 overflow-y: auto;
                 height: auto;
+                display: block;
             }
             .mobile-view-container {
                 display: flex;
@@ -90,13 +91,34 @@
             .sidebar-section {
                 width: 100%;
                 height: 100vh;
-                position: sticky;
-                top: 0;
             }
             .dashboard-section {
                 width: 100%;
                 min-height: 100vh;
             }
+            
+            /* View Toggling Rules */
+            body:not(.view-dashboard) .dashboard-section {
+                display: none !important;
+            }
+            body:not(.view-dashboard) .sidebar-section {
+                display: flex !important;
+            }
+            body.view-dashboard .sidebar-section {
+                display: none !important;
+            }
+            body.view-dashboard .dashboard-section {
+                display: block !important;
+            }
+        }
+
+        /* Transition utilities */
+        .transition-transform { transition: transform 0.3s ease; }
+        .line-clamp-4 {
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;  
+            overflow: hidden;
         }
     </style>
 </head>
@@ -157,12 +179,12 @@
     <div id="dashboard" class="dashboard-section flex-1 h-full overflow-y-auto relative hidden md:block pb-10">
         
         <!-- Mobile Back Button -->
-        <div class="sticky top-0 z-20 md:hidden p-4 glass-panel border-b border-white/10 flex items-center justify-between">
-            <button onclick="scrollToTop()" class="text-sm font-medium bg-white/10 px-4 py-2 rounded-lg flex items-center gap-2">
+        <div class="sticky top-0 z-20 md:hidden p-4 glass-panel border-b border-white/10 flex items-center justify-between shadow-lg">
+            <button onclick="backToList()" class="text-sm font-medium bg-white/10 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-white/20 transition-colors">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                 Back to List
             </button>
-            <span id="mobile-ticker-title" class="font-bold text-lg"></span>
+            <span id="mobile-ticker-title" class="font-bold text-lg tracking-tight"></span>
         </div>
 
         <div id="dashboard-content" class="p-6 max-w-7xl mx-auto hidden">
@@ -177,36 +199,84 @@
                 </div>
             </div>
 
-            <!-- Full Metrics List (Collapsible/Grid) -->
-            <div class="glass-panel rounded-2xl p-6 mb-8">
-                <h3 class="text-sm font-semibold text-white/50 uppercase tracking-wider mb-4 border-b border-white/10 pb-2">Quantitative Metrics</h3>
-                <div id="metrics-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 text-sm">
-                    <!-- Metrics injected here -->
-                </div>
-            </div>
-
-            <!-- TradingView Widgets Grid -->
+            <!-- Ordered Flow of Modules -->
             <div class="flex flex-col gap-6">
-                <!-- Main Chart Overview -->
+                
+                <!-- 1. Main Chart Overview (Ticker Widget) -->
                 <div class="glass-panel p-1 rounded-2xl border border-white/10 h-[500px]">
                     <div id="tv-overview" class="w-full h-full rounded-xl overflow-hidden relative"></div>
                 </div>
 
-                <!-- 2-Col Grid for Secondary Widgets -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative">
-                        <div id="tv-info" class="w-full h-full rounded-xl overflow-hidden"></div>
+                <!-- 2. Qualitative Summaries Card Component -->
+                <div class="glass-panel rounded-2xl border border-white/10 p-6 relative flex flex-col justify-center min-h-[160px]">
+                    <div class="flex items-center justify-between w-full h-full">
+                        <!-- Left Arrow -->
+                        <button onclick="prevSummary()" class="p-2 rounded-full hover:bg-white/10 transition-colors z-10 flex-shrink-0 text-white/50 hover:text-white">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                        </button>
+                        
+                        <!-- Content -->
+                        <div class="text-center flex-1 px-4 max-w-2xl mx-auto h-full flex flex-col justify-center">
+                            <h3 id="summary-title" class="text-sm font-bold mb-3 uppercase tracking-widest text-emerald-400">Short Term Bull</h3>
+                            <p id="summary-text" class="text-sm leading-relaxed text-white/80 line-clamp-4">Select a stock to view analytical summaries.</p>
+                        </div>
+                        
+                        <!-- Right Arrow -->
+                        <button onclick="nextSummary()" class="p-2 rounded-full hover:bg-white/10 transition-colors z-10 flex-shrink-0 text-white/50 hover:text-white">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                        </button>
                     </div>
-                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative">
-                        <div id="tv-timeline" class="w-full h-full rounded-xl overflow-hidden"></div>
-                    </div>
-                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative">
-                        <div id="tv-technical" class="w-full h-full rounded-xl overflow-hidden"></div>
-                    </div>
-                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative">
-                        <div id="tv-financials" class="w-full h-full rounded-xl overflow-hidden"></div>
+
+                    <!-- Pagination Dots -->
+                    <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                        <div id="dot-0" class="w-1.5 h-1.5 rounded-full bg-white/80 transition-colors duration-300"></div>
+                        <div id="dot-1" class="w-1.5 h-1.5 rounded-full bg-white/20 transition-colors duration-300"></div>
+                        <div id="dot-2" class="w-1.5 h-1.5 rounded-full bg-white/20 transition-colors duration-300"></div>
+                        <div id="dot-3" class="w-1.5 h-1.5 rounded-full bg-white/20 transition-colors duration-300"></div>
                     </div>
                 </div>
+
+                <!-- 3, 4, 5, 6. Secondary Widgets Grid -->
+                <!-- Order customized for flow: Technical -> Financials -> News -> Info -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <!-- Technical Analysis -->
+                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative order-1">
+                        <div id="tv-technical" class="w-full h-full rounded-xl overflow-hidden"></div>
+                    </div>
+
+                    <!-- Financials -->
+                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative order-2">
+                        <div id="tv-financials" class="w-full h-full rounded-xl overflow-hidden"></div>
+                    </div>
+
+                    <!-- News (Timeline) -->
+                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative order-3">
+                        <div id="tv-timeline" class="w-full h-full rounded-xl overflow-hidden"></div>
+                    </div>
+
+                    <!-- Info Widget -->
+                    <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative order-4">
+                        <div id="tv-info" class="w-full h-full rounded-xl overflow-hidden"></div>
+                    </div>
+                </div>
+
+                <!-- 7. Quantitative Metrics (Collapsible) -->
+                <div class="glass-panel rounded-2xl border border-white/10 mt-2">
+                    <button onclick="toggleMetrics()" class="w-full flex items-center justify-between p-6 hover:bg-white/[0.02] transition-colors rounded-2xl">
+                        <h3 class="text-sm font-semibold text-white/50 uppercase tracking-wider">Quantitative Metrics</h3>
+                        <svg id="metrics-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-white/50 transition-transform duration-300 transform rotate-180">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <!-- Default open state (no 'hidden' class initially) -->
+                    <div id="metrics-content" class="px-6 pb-6 pt-0 border-t border-white/5 mt-2">
+                        <div id="metrics-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 text-sm mt-4">
+                            <!-- Metrics injected here -->
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -217,16 +287,22 @@
     </div>
 
     <script>
-        const mockCsvData = `Date,Symbol,Total Mentions,ST Sentiment,LT Sentiment,Trading_Setup,Trajectory_Setup,ST_NSS_Norm,LT_NSS_Norm,Setup_Duration,RVol
-2026-04-10,AAOI,8,Very Bull,Very Bull,Breakout,Upward,1.0,1.0,1,1.5
-2026-04-10,AAPL,150,Bull,Bull,Consolidation,Stable,0.8,0.7,3,0.9
-2026-04-10,TSLA,210,Bear,Neutral,Breakdown,Downward,-0.5,0.1,2,2.1
-2026-04-10,NVDA,305,Strong Bull,Strong Bull,Momentum,Upward,1.5,1.8,5,1.8
-2026-04-10,AMD,120,Neutral,Bull,Mean Reversion,Stable,0.0,0.5,1,1.0`;
+        const mockCsvData = `Date,Symbol,Total Mentions,ST Sentiment,LT Sentiment,Trading_Setup,Trajectory_Setup,ST_NSS_Norm,LT_NSS_Norm,Setup_Duration,RVol,ST Bull Summary,ST Bear Summary,LT Bull Summary,LT Bear Summary
+2026-04-10,AAOI,8,Very Bull,Very Bull,Breakout,Upward,1.0,1.0,1,1.5,Strong upside momentum detected on recent earnings.,Overbought conditions might trigger slight pullback.,Positioned well for next gen fiber rollouts.,Supply chain constraints remain a risk factor.
+2026-04-10,AAPL,150,Bull,Bull,Consolidation,Stable,0.8,0.7,3,0.9,Approaching key support levels offering entry point.,Regulatory headwinds continue to suppress short term growth.,Services revenue expanding margins steadily.,Hardware supercycle relies heavily on uncertain consumer demand.`;
 
         let globalData = [];
         let filteredData = [];
         let currentSymbol = null;
+
+        // Summary Card State
+        let summaryIdx = 0;
+        let currentSummaries = [
+            { title: "Short Term Bull", text: "", color: "text-emerald-400" },
+            { title: "Short Term Bear", text: "", color: "text-rose-400" },
+            { title: "Long Term Bull", text: "", color: "text-emerald-400" },
+            { title: "Long Term Bear", text: "", color: "text-rose-400" }
+        ];
 
         document.addEventListener('DOMContentLoaded', () => {
             setupFilterListeners();
@@ -252,7 +328,6 @@
             listContainer.innerHTML = '<div class="text-center text-white/50 text-sm mt-10">Fetching remote data...</div>';
             
             try {
-                // Cache bust parameter omitted assuming file is updated statically 
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const text = await response.text();
@@ -367,15 +442,27 @@
             document.getElementById('empty-state').classList.add('hidden');
             document.getElementById('dashboard-content').classList.remove('hidden');
             
+            // Trigger Mobile View Router Logic
             if (window.innerWidth <= 768) {
-                document.getElementById('dashboard').style.display = 'block';
+                document.body.classList.add('view-dashboard');
                 document.getElementById('mobile-ticker-title').textContent = row.Symbol;
-                document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' });
+                window.scrollTo({ top: 0, behavior: 'instant' });
             }
 
             document.getElementById('dash-symbol').textContent = row.Symbol;
             document.getElementById('dash-date').textContent = row.Date || 'Latest Data';
 
+            // Extract Summaries
+            currentSummaries[0].text = row['ST Bull Summary'] || 'No distinct Short Term Bullish factors recorded.';
+            currentSummaries[1].text = row['ST Bear Summary'] || 'No distinct Short Term Bearish factors recorded.';
+            currentSummaries[2].text = row['LT Bull Summary'] || 'No distinct Long Term Bullish factors recorded.';
+            currentSummaries[3].text = row['LT Bear Summary'] || 'No distinct Long Term Bearish factors recorded.';
+            
+            // Reset to first slide & render
+            summaryIdx = 0;
+            renderSummaryCard();
+
+            // Build Badges
             const badgesContainer = document.getElementById('dash-badges');
             badgesContainer.innerHTML = '';
             const createBadge = (text, type) => {
@@ -397,11 +484,57 @@
             injectTVWidgets(row.Symbol);
         }
 
+        // --- Summary Card Navigation ---
+        function renderSummaryCard() {
+            const data = currentSummaries[summaryIdx];
+            const titleEl = document.getElementById('summary-title');
+            
+            titleEl.textContent = data.title;
+            titleEl.className = `text-sm font-bold mb-3 uppercase tracking-widest ${data.color}`;
+            
+            document.getElementById('summary-text').textContent = data.text;
+            
+            // Update dots
+            for(let i=0; i<4; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if(i === summaryIdx) {
+                    dot.classList.replace('bg-white/20', 'bg-white/80');
+                } else {
+                    dot.classList.replace('bg-white/80', 'bg-white/20');
+                }
+            }
+        }
+
+        function nextSummary() { 
+            summaryIdx = (summaryIdx + 1) % 4; 
+            renderSummaryCard(); 
+        }
+
+        function prevSummary() { 
+            summaryIdx = (summaryIdx - 1 + 4) % 4; 
+            renderSummaryCard(); 
+        }
+
+        // --- Collapsible Metrics ---
+        function toggleMetrics() {
+            const content = document.getElementById('metrics-content');
+            const chevron = document.getElementById('metrics-chevron');
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                chevron.style.transform = 'rotate(180deg)';
+            } else {
+                content.classList.add('hidden');
+                chevron.style.transform = 'rotate(0deg)';
+            }
+        }
+
         function renderMetricsGrid(dataRow) {
             const grid = document.getElementById('metrics-grid');
             grid.innerHTML = '';
             
-            const excludedKeys = ['Symbol', 'Date', 'ST_Bullish_Text', 'ST_Bearish_Text', 'LT_Bullish_Text', 'LT_Bearish_Text'];
+            // Exclude text-heavy or redundant columns from the quantitative grid
+            const excludedKeys = ['Symbol', 'Date', 'ST Bull Summary', 'ST Bear Summary', 'LT Bull Summary', 'LT Bear Summary', 'ST_Bullish_Text', 'ST_Bearish_Text', 'LT_Bullish_Text', 'LT_Bearish_Text'];
             
             Object.entries(dataRow).forEach(([key, value]) => {
                 if (excludedKeys.includes(key) || !value || value.length > 50) return;
@@ -416,13 +549,16 @@
             });
         }
 
-        function scrollToTop() {
+        // --- Mobile Navigation ---
+        function backToList() {
+            document.body.classList.remove('view-dashboard');
+            currentSymbol = null;
+            renderList(); // clear highlight from list
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        // --- TradingView Injections ---
         function injectTVWidgets(symbol) {
-            // TradingView utilizes dynamic DOM scanning. Generating scripts dynamically 
-            // inside a single-page application requires specific structure replication.
             const tvSymbol = `NASDAQ:${symbol}`;
 
             // Overview
@@ -452,31 +588,9 @@
                 "lineType": 0
             });
 
-            // Info
-            renderTVWidget('tv-info', 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js', {
-                "symbol": tvSymbol,
-                "width": "100%",
-                "height": "100%",
-                "colorTheme": "dark",
-                "isTransparent": true,
-                "locale": "en"
-            });
-
-            // Timeline
-            renderTVWidget('tv-timeline', 'https://s3.tradingview.com/external-embedding/embed-widget-timeline.js', {
-                "feedMode": "symbol",
-                "symbol": tvSymbol,
-                "width": "100%",
-                "height": "100%",
-                "colorTheme": "dark",
-                "isTransparent": true,
-                "displayMode": "regular",
-                "locale": "en"
-            });
-
-            // Technical
+            // Technical Analysis (Defaulting to 1 Day interval)
             renderTVWidget('tv-technical', 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js', {
-                "interval": "1m",
+                "interval": "1D",
                 "width": "100%",
                 "height": "100%",
                 "symbol": tvSymbol,
@@ -495,6 +609,28 @@
                 "colorTheme": "dark",
                 "isTransparent": true,
                 "displayMode": "regular",
+                "locale": "en"
+            });
+
+            // News Timeline
+            renderTVWidget('tv-timeline', 'https://s3.tradingview.com/external-embedding/embed-widget-timeline.js', {
+                "feedMode": "symbol",
+                "symbol": tvSymbol,
+                "width": "100%",
+                "height": "100%",
+                "colorTheme": "dark",
+                "isTransparent": true,
+                "displayMode": "regular",
+                "locale": "en"
+            });
+
+            // Info Details
+            renderTVWidget('tv-info', 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js', {
+                "symbol": tvSymbol,
+                "width": "100%",
+                "height": "100%",
+                "colorTheme": "dark",
+                "isTransparent": true,
                 "locale": "en"
             });
         }
