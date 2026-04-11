@@ -15,6 +15,7 @@
             color: #ffffff;
             margin: 0;
             height: 100vh;
+            height: 100dvh;
             overflow: hidden;
         }
 
@@ -93,13 +94,15 @@
             .mobile-view-container {
                 display: flex;
                 flex-direction: column;
-                min-height: 100vh;
+                height: 100vh;
+                height: 100dvh;
             }
             .sidebar-section {
                 width: 100%;
-                height: 100vh;
+                flex: 1;
                 display: flex;
                 flex-direction: column;
+                min-height: 0;
             }
             .dashboard-section {
                 width: 100%;
@@ -132,10 +135,10 @@
         }
         .swipe-card {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            left: 0;
-            top: 0;
+            left: 1.5rem;
+            right: 1.5rem;
+            top: 1.5rem;
+            bottom: 1.5rem;
             transform-origin: 50% 100%;
             will-change: transform;
             touch-action: none;
@@ -226,14 +229,14 @@
         </div>
 
         <!-- Dynamic Content Area -->
-        <div class="flex-1 relative overflow-hidden flex flex-col min-h-0">
+        <div class="flex-1 relative overflow-hidden flex flex-col min-h-0 w-full">
             <!-- List View (Default) -->
-            <div id="stock-list" class="absolute inset-0 overflow-y-auto p-3 space-y-2">
+            <div id="stock-list" class="w-full h-full overflow-y-auto p-3 space-y-2 block">
                 <div class="text-center text-white/50 text-sm mt-10">Loading data...</div>
             </div>
 
             <!-- Stack View (Hidden by Default) -->
-            <div id="stock-stack" class="hidden absolute inset-0 p-6 flex flex-col items-center justify-center">
+            <div id="stock-stack" class="hidden w-full h-full relative">
                 <!-- Stack cards injected here -->
             </div>
         </div>
@@ -480,6 +483,11 @@
     </div>
 
     <script>
+        // Mock data moved to top to prevent Temporal Dead Zone Reference Errors on rapid fallback execution
+        const mockCsvData = `Date,Symbol,Total Mentions,stocks,wallstreetbets,options,ST Sentiment,LT Sentiment,Trading_Setup,Trajectory_Setup,ST_NSS_Norm,LT_NSS_Norm,Setup_Duration,RVol,ST Bull Summary,ST Bear Summary,LT Bull Summary,LT Bear Summary,Value_Score,Selected_Seeds
+2026-04-10,AAOI,8,2,6,0,Very Bull,Very Bull,Breakout,Upward,1.0,1.0,1,1.5,Strong upside momentum detected on recent earnings.,Overbought conditions might trigger slight pullback.,Positioned well for next gen fiber rollouts.,Supply chain constraints remain a risk factor.,-0.6,Steady Hype Seeds
+2026-04-10,AAPL,150,50,80,20,Bull,Bull,Consolidation,Stable,0.8,0.7,3,0.9,Approaching key support levels offering entry point.,Regulatory headwinds continue to suppress short term growth.,Services revenue expanding margins steadily.,Hardware supercycle relies heavily on uncertain consumer demand.,0.3,Steady Value Seeds`;
+
         // Data & Core State
         let globalData = [];
         let filteredData = [];
@@ -525,7 +533,6 @@
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const text = await response.text();
                 
-                // Ensure we don't accidentally parse an HTML 404 page if hosted externally
                 if (text.trim().toLowerCase().startsWith('<!doctype') || text.trim().toLowerCase().startsWith('<html')) {
                     throw new Error("Received HTML routing failure instead of raw CSV.");
                 }
@@ -544,7 +551,6 @@
                 complete: function(results) {
                     globalData = results.data.filter(row => row.Symbol && row.Symbol.trim() !== '');
                     
-                    // Fallback intercept if the file parsed was entirely empty or structurally invalid
                     if (globalData.length === 0 && csvString !== mockCsvData) {
                         console.warn("Parsed CSV had no valid symbols, falling back to mock data.");
                         parseData(mockCsvData);
@@ -689,7 +695,6 @@
             renderStack();
         }
 
-        // --- Mobile View Mode Toggle ---
         function setMobileMode(mode) {
             currentMobileMode = mode;
             const btnList = document.getElementById('btn-view-list');
@@ -701,17 +706,18 @@
                 btnList.className = 'flex-1 py-2 text-xs font-semibold rounded-md bg-white/10 text-white transition-all shadow-sm';
                 btnStack.className = 'flex-1 py-2 text-xs font-semibold rounded-md text-white/50 hover:text-white transition-all';
                 listContainer.classList.remove('hidden');
+                listContainer.classList.add('block');
                 stackContainer.classList.add('hidden');
             } else {
                 btnStack.className = 'flex-1 py-2 text-xs font-semibold rounded-md bg-white/10 text-white transition-all shadow-sm';
                 btnList.className = 'flex-1 py-2 text-xs font-semibold rounded-md text-white/50 hover:text-white transition-all';
                 stackContainer.classList.remove('hidden');
                 listContainer.classList.add('hidden');
+                listContainer.classList.remove('block');
                 renderStack(); 
             }
         }
 
-        // --- List View Renderer ---
         function renderList() {
             const container = document.getElementById('stock-list');
             container.innerHTML = '';
@@ -733,7 +739,6 @@
 
                 const seedText = row['Selected_Seeds'] || 'Uncategorized';
                 
-                // Safely parse Value_Score avoiding NaN rendering errors
                 const valueScore = parseFloat(row['Value_Score']);
                 const clampedScore = isNaN(valueScore) ? 0 : Math.max(-1, Math.min(1, valueScore));
                 const rotation = clampedScore * 90;
@@ -769,7 +774,6 @@
             });
         }
 
-        // --- Tinder Stack View Logic ---
         function renderStack() {
             const container = document.getElementById('stock-stack');
             container.innerHTML = '';
@@ -850,7 +854,6 @@
             }
         }
 
-        // --- Custom Touch Physics Engine ---
         function setupSwipeEngine(card, row) {
             let isDragging = false;
             let startX = 0, startY = 0, currentX = 0, currentY = 0;
@@ -900,7 +903,6 @@
             });
         }
 
-        // --- Mobile Detail Stack (Fullscreen Carousel) ---
         function openMobileDetailStack(row) {
             currentSymbol = row.Symbol;
             document.getElementById('mobile-detail-stack').classList.replace('hidden', 'flex');
@@ -932,7 +934,6 @@
             });
         }
 
-        // --- Desktop Operations ---
         function selectStockDesktop(row) {
             currentSymbol = row.Symbol;
             renderList(); 
@@ -983,7 +984,6 @@
             injectTVWidgets(row.Symbol, '');
         }
 
-        // --- Common Helpers ---
         function toggleFilters() {
             const content = document.getElementById('filters-content');
             const chevron = document.getElementById('filters-chevron');
@@ -1025,8 +1025,18 @@
         function closeSummaryModal() { document.getElementById('summary-modal').classList.add('hidden'); }
         function openGlossaryModal() { document.getElementById('glossary-modal').classList.remove('hidden'); }
         function closeGlossaryModal() { document.getElementById('glossary-modal').classList.add('hidden'); }
+        function toggleMetrics() {
+            const content = document.getElementById('metrics-content');
+            const chevron = document.getElementById('metrics-chevron');
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                chevron.style.transform = 'rotate(180deg)';
+            } else {
+                content.classList.add('hidden');
+                chevron.style.transform = 'rotate(0deg)';
+            }
+        }
 
-        // --- TV Widget Injector ---
         function injectTVWidgets(symbol, prefix = '') {
             const tvSymbol = `NASDAQ:${symbol}`;
             const pfx = prefix ? `${prefix}-tv-` : 'tv-';
@@ -1069,11 +1079,6 @@
             widgetContainer.appendChild(script);
             container.appendChild(widgetContainer);
         }
-
-        // Mock data initialization intercept
-        const mockCsvData = `Date,Symbol,Total Mentions,stocks,wallstreetbets,options,ST Sentiment,LT Sentiment,Trading_Setup,Trajectory_Setup,ST_NSS_Norm,LT_NSS_Norm,Setup_Duration,RVol,ST Bull Summary,ST Bear Summary,LT Bull Summary,LT Bear Summary,Value_Score,Selected_Seeds
-2026-04-10,AAOI,8,2,6,0,Very Bull,Very Bull,Breakout,Upward,1.0,1.0,1,1.5,Strong upside momentum detected on recent earnings.,Overbought conditions might trigger slight pullback.,Positioned well for next gen fiber rollouts.,Supply chain constraints remain a risk factor.,-0.6,Steady Hype Seeds
-2026-04-10,AAPL,150,50,80,20,Bull,Bull,Consolidation,Stable,0.8,0.7,3,0.9,Approaching key support levels offering entry point.,Regulatory headwinds continue to suppress short term growth.,Services revenue expanding margins steadily.,Hardware supercycle relies heavily on uncertain consumer demand.,0.3,Steady Value Seeds`;
     </script>
 </body>
 </html>
