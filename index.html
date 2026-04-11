@@ -146,6 +146,15 @@
         .swipe-card.animating {
             transition: transform 0.3s ease-out, opacity 0.3s ease-out;
         }
+
+        /* Raw Data Table Specifics */
+        .raw-table th {
+            position: sticky;
+            top: 0;
+            background: rgba(28, 28, 30, 0.95);
+            backdrop-filter: blur(16px);
+            z-index: 10;
+        }
     </style>
 </head>
 <body class="flex flex-col md:flex-row antialiased mobile-view-container">
@@ -163,7 +172,10 @@
         <div class="p-5 border-b border-white/10 flex-shrink-0">
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-xl font-semibold tracking-tight">Seeds Engine</h1>
-                <button onclick="openGlossaryModal()" class="text-xs px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors font-medium text-white/90 border border-white/10">Glossary</button>
+                <div class="flex gap-2">
+                    <button onclick="openRawDataView()" class="text-xs px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors font-medium text-white/90 border border-white/10">Raw Data</button>
+                    <button onclick="openGlossaryModal()" class="text-xs px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors font-medium text-white/90 border border-white/10">Glossary</button>
+                </div>
             </div>
             
             <!-- Ticker Search & Sort -->
@@ -335,6 +347,70 @@
         </div>
     </div>
 
+    <!-- RAW DATA FULLSCREEN VIEW -->
+    <div id="raw-data-view" class="hidden fixed inset-0 z-[200] bg-[#000000] flex-col overflow-hidden">
+        <!-- Header -->
+        <div class="p-4 border-b border-white/10 flex justify-between items-center glass-panel flex-shrink-0">
+            <h2 class="text-xl font-bold tracking-tight">Raw Data: Price Database</h2>
+            <button onclick="closeRawDataView()" class="text-xs px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors font-medium text-white">Back to Dashboard</button>
+        </div>
+
+        <!-- Filters Panel -->
+        <div class="p-4 border-b border-white/10 grid grid-cols-2 md:grid-cols-5 gap-4 text-xs glass-panel flex-shrink-0">
+            <div>
+                <label class="text-white/50 mb-1 block">Date</label>
+                <select id="raw-filter-date" class="w-full p-2 rounded-lg glass-input appearance-none">
+                    <option value="All">All</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-white/50 mb-1 block">Subreddit (>0 Mentions)</label>
+                <select id="raw-filter-subreddit" class="w-full p-2 rounded-lg glass-input appearance-none">
+                    <option value="All">All</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-white/50 mb-1 block">Symbol</label>
+                <input type="text" id="raw-filter-ticker" placeholder="Search Symbol..." class="w-full p-2 rounded-lg glass-input">
+            </div>
+            <div>
+                <label class="text-white/50 mb-1 block">Sort By</label>
+                <select id="raw-sort-order" class="w-full p-2 rounded-lg glass-input appearance-none">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+            <div class="col-span-2 md:col-span-1">
+                <div class="flex justify-between items-center text-white/50 mb-1">
+                    <label>Min % Change</label>
+                    <span id="raw-pct-val" class="font-semibold text-white">0.00%</span>
+                </div>
+                <input type="range" id="raw-filter-pct" min="-100" max="100" step="0.1" value="-100" 
+                    class="w-full accent-emerald-500 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer">
+            </div>
+        </div>
+
+        <!-- Table Container -->
+        <div class="flex-1 overflow-auto custom-scrollbar p-4">
+            <table class="raw-table w-full text-left border-collapse whitespace-nowrap text-xs">
+                <thead>
+                    <tr id="raw-table-head" class="text-white/50 uppercase tracking-wider">
+                        <!-- Headers injected dynamically -->
+                    </tr>
+                </thead>
+                <tbody id="raw-table-body" class="divide-y divide-white/5">
+                    <!-- Rows injected dynamically -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Footer -->
+        <div class="p-4 border-t border-white/10 flex justify-between items-center glass-panel flex-shrink-0">
+            <button onclick="changeRawPage(-1)" class="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-white/80 transition-colors">Previous</button>
+            <span id="raw-page-info" class="text-sm font-medium text-white/70">Page 1</span>
+            <button onclick="changeRawPage(1)" class="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-white/80 transition-colors">Next</button>
+        </div>
+    </div>
+
     <!-- MOBILE STACK DETAIL MODAL -->
     <div id="mobile-detail-stack" class="fixed inset-0 z-[100] bg-black hidden flex-col">
         <div class="p-4 flex items-center justify-between border-b border-white/10 bg-[#0F0F0F]">
@@ -483,16 +559,27 @@
     </div>
 
     <script>
-        // Mock data moved to top to prevent Temporal Dead Zone Reference Errors on rapid fallback execution
+        // Data Mocks to prevent TDZ reference errors on fallback execution
         const mockCsvData = `Date,Symbol,Total Mentions,stocks,wallstreetbets,options,ST Sentiment,LT Sentiment,Trading_Setup,Trajectory_Setup,ST_NSS_Norm,LT_NSS_Norm,Setup_Duration,RVol,ST Bull Summary,ST Bear Summary,LT Bull Summary,LT Bear Summary,Value_Score,Selected_Seeds
 2026-04-10,AAOI,8,2,6,0,Very Bull,Very Bull,Breakout,Upward,1.0,1.0,1,1.5,Strong upside momentum detected on recent earnings.,Overbought conditions might trigger slight pullback.,Positioned well for next gen fiber rollouts.,Supply chain constraints remain a risk factor.,-0.6,Steady Hype Seeds
 2026-04-10,AAPL,150,50,80,20,Bull,Bull,Consolidation,Stable,0.8,0.7,3,0.9,Approaching key support levels offering entry point.,Regulatory headwinds continue to suppress short term growth.,Services revenue expanding margins steadily.,Hardware supercycle relies heavily on uncertain consumer demand.,0.3,Steady Value Seeds`;
 
-        // Data & Core State
+        const mockRawCsvData = `Date,Symbol,Total Mentions,stocks,stockmarket,ValueInvesting,SecurityAnalysis,options,unusual_whales,Daytrading,swingtrading,wallstreetbets,stockstobuytoday,DeepMarketScan,investing,thetagang,smallstreetbets,ST Strong Bull,ST Bull,ST Neutral,ST Bear,ST Strong Bear,LT Strong Bull,LT Bull,LT Neutral,LT Bear,LT Strong Bear,ST_Bullish_Text,ST_Bearish_Text,LT_Bullish_Text,LT_Bearish_Text,ST Bull Summary,ST Bear Summary,LT Bull Summary,LT Bear Summary,Model,Buy_Price,Current_Price,Price_Change_Pct
+2026-04-10,AAOI,8,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.0,0.0,0.0,0.0,4.0,0,6,2,0,0,0,6,2,0,0,Bullish AAOI,Bearish AAOI,LT Bullish AAOI,LT Bearish AAOI,Strong momentum,Overbought,Well positioned,Supply chain risks,QWEN,10.0,10.5,0.05
+2026-04-10,AAPL,150,50,0.0,0.0,0.0,20,0.0,0.0,0.0,80,0.0,0.0,0.0,0.0,0.0,20,50,40,30,10,10,60,50,20,10,Bullish AAPL,Bearish AAPL,LT Bull AAPL,LT Bear AAPL,Support entry,Regulatory headwinds,Services revenue,Hardware supercycle,QWEN,150.0,147.0,-0.02`;
+
+        // Dashboard Data State
         let globalData = [];
         let filteredData = [];
         let currentSymbol = null;
         let subredditsList = [];
+
+        // Raw Data State
+        let rawData = [];
+        let filteredRawData = [];
+        let rawCurrentPage = 1;
+        const rawRowsPerPage = 10;
+        let rawSubredditsList = ['stocks','stockmarket','ValueInvesting','SecurityAnalysis','options','unusual_whales','Daytrading','swingtrading','wallstreetbets','stockstobuytoday','DeepMarketScan','investing','thetagang','smallstreetbets'];
 
         // Mobile View State ('list' or 'stack')
         let currentMobileMode = 'list';
@@ -513,7 +600,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             setupFilterListeners();
             loadData();
+            loadRawData();
         });
+
+        // ------------------ MAIN DASHBOARD LOGIC ------------------
 
         function setupFilterListeners() {
             const filters = ['seeds', 'setup', 'st-sent', 'lt-sent', 'traj', 'subreddit', 'sort-order'];
@@ -522,41 +612,45 @@
                 if (el) el.addEventListener('change', applyFilters);
             });
             document.getElementById('filter-ticker').addEventListener('input', applyFilters);
+
+            // Raw Data Listeners
+            const rawFilters = ['date', 'subreddit', 'sort-order'];
+            rawFilters.forEach(f => {
+                const el = document.getElementById(`raw-${f === 'sort-order' ? f : 'filter-' + f}`);
+                if (el) el.addEventListener('change', applyRawFilters);
+            });
+            document.getElementById('raw-filter-ticker').addEventListener('input', applyRawFilters);
+            
+            const rawSlider = document.getElementById('raw-filter-pct');
+            if (rawSlider) {
+                rawSlider.addEventListener('input', (e) => {
+                    document.getElementById('raw-pct-val').textContent = parseFloat(e.target.value).toFixed(2) + '%';
+                });
+                rawSlider.addEventListener('change', applyRawFilters);
+            }
         }
 
         async function loadData() {
             const url = 'Today_Final_Signals.csv';
             document.getElementById('stock-list').innerHTML = '<div class="text-center text-white/50 text-sm mt-10">Fetching data...</div>';
-            
             try {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const text = await response.text();
-                
-                if (text.trim().toLowerCase().startsWith('<!doctype') || text.trim().toLowerCase().startsWith('<html')) {
-                    throw new Error("Received HTML routing failure instead of raw CSV.");
-                }
-                
+                if (text.trim().toLowerCase().startsWith('<!doctype') || text.trim().toLowerCase().startsWith('<html')) throw new Error("Received HTML");
                 parseData(text);
             } catch (error) {
-                console.warn("Could not load expected CSV from remote, immediately reverting to core mock data.");
+                console.warn("Dashboard CSV not found, reverting to mock.");
                 parseData(mockCsvData);
             }
         }
 
         function parseData(csvString) {
             Papa.parse(csvString, {
-                header: true,
-                skipEmptyLines: true,
+                header: true, skipEmptyLines: true,
                 complete: function(results) {
                     globalData = results.data.filter(row => row.Symbol && row.Symbol.trim() !== '');
-                    
-                    if (globalData.length === 0 && csvString !== mockCsvData) {
-                        console.warn("Parsed CSV had no valid symbols, falling back to mock data.");
-                        parseData(mockCsvData);
-                        return;
-                    }
-
+                    if (globalData.length === 0 && csvString !== mockCsvData) return parseData(mockCsvData);
                     populateFilters();
                     applyFilters();
                 }
@@ -564,11 +658,8 @@
         }
 
         function populateFilters() {
-            const seedsSet = new Set();
-            const setups = new Set();
-            const stSents = new Set();
-            const ltSents = new Set();
-            const trajs = new Set();
+            const seedsSet = new Set(); const setups = new Set();
+            const stSents = new Set(); const ltSents = new Set(); const trajs = new Set();
 
             if (globalData.length > 0) {
                 const keys = Object.keys(globalData[0]);
@@ -577,8 +668,7 @@
                 if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx + 1) {
                     subredditsList = keys.slice(startIdx + 1, endIdx);
                 } else {
-                    const knownSubs = ['stocks', 'stockmarket', 'ValueInvesting', 'SecurityAnalysis', 'options', 'unusual_whales', 'Daytrading', 'swingtrading', 'wallstreetbets', 'stockstobuytoday', 'DeepMarketScan', 'investing', 'thetagang', 'smallstreetbets'];
-                    subredditsList = keys.filter(k => knownSubs.includes(k));
+                    subredditsList = keys.filter(k => rawSubredditsList.includes(k));
                 }
             }
 
@@ -590,10 +680,8 @@
                 if (row['Trajectory_Setup']) trajs.add(row['Trajectory_Setup']);
             });
 
-            fillSelect('filter-seeds', seedsSet);
-            fillSelect('filter-setup', setups);
-            fillSelect('filter-st-sent', stSents);
-            fillSelect('filter-lt-sent', ltSents);
+            fillSelect('filter-seeds', seedsSet); fillSelect('filter-setup', setups);
+            fillSelect('filter-st-sent', stSents); fillSelect('filter-lt-sent', ltSents);
             fillSelect('filter-traj', trajs);
             
             const subSelect = document.getElementById('filter-subreddit');
@@ -601,42 +689,28 @@
                 subSelect.innerHTML = '<option value="All">All</option>';
                 subredditsList.forEach(sub => {
                     const opt = document.createElement('option');
-                    opt.value = sub;
-                    opt.textContent = sub;
-                    subSelect.appendChild(opt);
+                    opt.value = sub; opt.textContent = sub; subSelect.appendChild(opt);
                 });
             }
 
             const sortSelect = document.getElementById('sort-order');
             if (sortSelect) {
-                sortSelect.innerHTML = `
-                    <option value="Total Mentions-desc">Mentions (High to Low)</option>
-                    <option value="Total Mentions-asc">Mentions (Low to High)</option>
-                    <option value="alpha">Alphabetical</option>
-                `;
-                
+                sortSelect.innerHTML = `<option value="Total Mentions-desc">Mentions (High to Low)</option><option value="Total Mentions-asc">Mentions (Low to High)</option><option value="alpha">Alphabetical</option>`;
                 const excludeFromSort = new Set(['Date', 'Symbol', 'Total Mentions', 'Selected_Seeds', ...subredditsList]);
                 const numericCols = new Set();
                 
                 if (globalData.length > 0) {
-                    const keys = Object.keys(globalData[0]);
-                    keys.forEach(key => {
+                    Object.keys(globalData[0]).forEach(key => {
                         if (!excludeFromSort.has(key)) {
                             const rowWithValue = globalData.find(r => r[key] !== undefined && r[key] !== null && r[key].toString().trim() !== '');
-                            if (rowWithValue) {
-                                const valStr = rowWithValue[key].toString().trim();
-                                if (!isNaN(Number(valStr))) {
-                                    numericCols.add(key);
-                                }
-                            }
+                            if (rowWithValue && !isNaN(Number(rowWithValue[key].toString().trim()))) numericCols.add(key);
                         }
                     });
                 }
 
                 Array.from(numericCols).sort().forEach(col => {
                     const cleanName = col.replace(/_/g, ' ');
-                    sortSelect.innerHTML += `<option value="${col}-desc">${cleanName} (High to Low)</option>`;
-                    sortSelect.innerHTML += `<option value="${col}-asc">${cleanName} (Low to High)</option>`;
+                    sortSelect.innerHTML += `<option value="${col}-desc">${cleanName} (High to Low)</option><option value="${col}-asc">${cleanName} (Low to High)</option>`;
                 });
             }
         }
@@ -647,9 +721,7 @@
             select.innerHTML = '<option value="All">All</option>';
             Array.from(set).filter(Boolean).sort().forEach(val => {
                 const opt = document.createElement('option');
-                opt.value = val;
-                opt.textContent = val;
-                select.appendChild(opt);
+                opt.value = val; opt.textContent = val; select.appendChild(opt);
             });
         }
 
@@ -683,9 +755,7 @@
                     if (lastDashIdx === -1) return 0;
                     const col = sortOrder.substring(0, lastDashIdx);
                     const order = sortOrder.substring(lastDashIdx + 1);
-                    const valA = parseFloat(a[col]) || 0;
-                    const valB = parseFloat(b[col]) || 0;
-                    return order === 'desc' ? valB - valA : valA - valB;
+                    return order === 'desc' ? (parseFloat(b[col])||0) - (parseFloat(a[col])||0) : (parseFloat(a[col])||0) - (parseFloat(b[col])||0);
                 }
                 return 0;
             });
@@ -705,15 +775,13 @@
             if (mode === 'list') {
                 btnList.className = 'flex-1 py-2 text-xs font-semibold rounded-md bg-white/10 text-white transition-all shadow-sm';
                 btnStack.className = 'flex-1 py-2 text-xs font-semibold rounded-md text-white/50 hover:text-white transition-all';
-                listContainer.classList.remove('hidden');
-                listContainer.classList.add('block');
+                listContainer.classList.remove('hidden'); listContainer.classList.add('block');
                 stackContainer.classList.add('hidden');
             } else {
                 btnStack.className = 'flex-1 py-2 text-xs font-semibold rounded-md bg-white/10 text-white transition-all shadow-sm';
                 btnList.className = 'flex-1 py-2 text-xs font-semibold rounded-md text-white/50 hover:text-white transition-all';
                 stackContainer.classList.remove('hidden');
-                listContainer.classList.add('hidden');
-                listContainer.classList.remove('block');
+                listContainer.classList.add('hidden'); listContainer.classList.remove('block');
                 renderStack(); 
             }
         }
@@ -721,27 +789,21 @@
         function renderList() {
             const container = document.getElementById('stock-list');
             container.innerHTML = '';
-
             if (filteredData.length === 0) {
                 container.innerHTML = '<div class="text-center text-white/50 text-sm mt-10">No signals match criteria.</div>';
                 return;
             }
-
             filteredData.forEach(row => {
                 const div = document.createElement('div');
                 const isSelected = currentSymbol === row.Symbol;
                 div.className = `p-4 rounded-xl cursor-pointer transition-all border ${isSelected ? 'bg-white/10 border-white/30' : 'bg-white/[0.02] border-white/5 hover:bg-white/5'} flex justify-between items-center`;
-                
                 let sentColor = 'text-white/50';
-                const st = row['ST Sentiment'] || '';
-                if (st.includes('Bull')) sentColor = 'text-emerald-400';
-                if (st.includes('Bear')) sentColor = 'text-rose-400';
+                if ((row['ST Sentiment']||'').includes('Bull')) sentColor = 'text-emerald-400';
+                if ((row['ST Sentiment']||'').includes('Bear')) sentColor = 'text-rose-400';
 
                 const seedText = row['Selected_Seeds'] || 'Uncategorized';
-                
                 const valueScore = parseFloat(row['Value_Score']);
-                const clampedScore = isNaN(valueScore) ? 0 : Math.max(-1, Math.min(1, valueScore));
-                const rotation = clampedScore * 90;
+                const rotation = (isNaN(valueScore) ? 0 : Math.max(-1, Math.min(1, valueScore))) * 90;
 
                 div.innerHTML = `
                     <div class="flex-[1.2] min-w-0 pr-2">
@@ -752,9 +814,7 @@
                     <div class="flex-1 flex flex-col items-center justify-center border-x border-white/10 px-2 mx-1">
                         <div class="relative w-[52px] h-[26px] mt-1">
                             <svg viewBox="0 0 100 50" class="w-full h-full overflow-visible">
-                                <defs><linearGradient id="grad-${row.Symbol}" x1="0%" y1="0%" x2="100%" y2="0%">
-                                    <stop offset="0%" stop-color="#fb7185" /><stop offset="50%" stop-color="#64748b" /><stop offset="100%" stop-color="#34d399" />
-                                </linearGradient></defs>
+                                <defs><linearGradient id="grad-${row.Symbol}" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#fb7185" /><stop offset="50%" stop-color="#64748b" /><stop offset="100%" stop-color="#34d399" /></linearGradient></defs>
                                 <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="url(#grad-${row.Symbol})" stroke-width="12" stroke-linecap="round"/>
                                 <polygon points="46,55 54,55 50,5" fill="#ffffff" transform="rotate(${rotation}, 50, 50)"/>
                                 <circle cx="50" cy="50" r="6" fill="#ffffff" />
@@ -764,7 +824,7 @@
                         </div>
                     </div>
                     <div class="flex-[0.8] text-right pl-2">
-                        <div class="text-xs font-medium ${sentColor} truncate">${st}</div>
+                        <div class="text-xs font-medium ${sentColor} truncate">${row['ST Sentiment'] || ''}</div>
                         <div class="text-[10px] text-white/40 mt-1 truncate">Vol: ${row.RVol || '-'}</div>
                         <div class="text-[10px] text-white/40 mt-0.5 truncate">Men: ${row['Total Mentions'] || 0}</div>
                     </div>
@@ -777,7 +837,6 @@
         function renderStack() {
             const container = document.getElementById('stock-stack');
             container.innerHTML = '';
-            
             if (filteredData.length === 0) {
                 container.innerHTML = '<div class="text-white/50 text-sm">No signals match criteria.</div>';
                 return;
@@ -786,22 +845,14 @@
             for (let i = 0; i < Math.min(3, filteredData.length); i++) {
                 const dataIndex = (stackIndex + i) % filteredData.length;
                 const row = filteredData[dataIndex];
-                
                 const card = document.createElement('div');
                 card.className = 'swipe-card glass-panel rounded-3xl border border-white/20 p-6 flex flex-col shadow-2xl';
-                
-                const scale = 1 - (i * 0.05);
-                const translateY = i * 15;
-                const zIndex = 50 - i;
-                
-                card.style.transform = `scale(${scale}) translateY(${translateY}px)`;
-                card.style.zIndex = zIndex;
+                card.style.transform = `scale(${1 - (i * 0.05)}) translateY(${i * 15}px)`;
+                card.style.zIndex = 50 - i;
                 if(i > 0) card.style.opacity = 1 - (i * 0.2);
                 
                 const valueScore = parseFloat(row['Value_Score']);
-                const clampedScore = isNaN(valueScore) ? 0 : Math.max(-1, Math.min(1, valueScore));
-                const rotation = clampedScore * 90;
-                
+                const rotation = (isNaN(valueScore) ? 0 : Math.max(-1, Math.min(1, valueScore))) * 90;
                 let sentColor = 'text-white/50';
                 if ((row['ST Sentiment']||'').includes('Bull')) sentColor = 'text-emerald-400';
                 if ((row['ST Sentiment']||'').includes('Bear')) sentColor = 'text-rose-400';
@@ -816,14 +867,11 @@
                             <span class="px-3 py-1 bg-white/10 rounded-full text-xs font-semibold ${sentColor}">${row['ST Sentiment'] || 'N/A'}</span>
                         </div>
                     </div>
-
                     <div class="flex-1 flex flex-col justify-center items-center py-6 border-y border-white/10 my-4 pointer-events-none">
                         <span class="text-xs text-white/50 uppercase tracking-widest mb-4">Volume Quality</span>
                         <div class="relative w-[140px] h-[70px]">
                             <svg viewBox="0 0 100 50" class="w-full h-full overflow-visible">
-                                <defs><linearGradient id="stack-grad-${row.Symbol}" x1="0%" y1="0%" x2="100%" y2="0%">
-                                    <stop offset="0%" stop-color="#fb7185" /><stop offset="50%" stop-color="#64748b" /><stop offset="100%" stop-color="#34d399" />
-                                </linearGradient></defs>
+                                <defs><linearGradient id="stack-grad-${row.Symbol}" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#fb7185" /><stop offset="50%" stop-color="#64748b" /><stop offset="100%" stop-color="#34d399" /></linearGradient></defs>
                                 <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="url(#stack-grad-${row.Symbol})" stroke-width="12" stroke-linecap="round"/>
                                 <polygon points="47,55 53,55 50,5" fill="#ffffff" transform="rotate(${rotation}, 50, 50)"/>
                                 <circle cx="50" cy="50" r="5" fill="#ffffff" />
@@ -832,7 +880,6 @@
                             <div class="absolute -bottom-6 right-[-10px] text-xs font-semibold text-white/60">VALUE</div>
                         </div>
                     </div>
-
                     <div class="grid grid-cols-2 gap-4 mt-auto pointer-events-none">
                         <div class="bg-white/5 p-3 rounded-xl text-center">
                             <div class="text-[10px] text-white/50 uppercase">Setup</div>
@@ -845,58 +892,40 @@
                     </div>
                 `;
 
-                if (i === 0) {
-                    topCardEl = card;
-                    setupSwipeEngine(card, row);
-                }
-                
+                if (i === 0) setupSwipeEngine(card, row);
                 container.appendChild(card);
             }
         }
 
         function setupSwipeEngine(card, row) {
-            let isDragging = false;
-            let startX = 0, startY = 0, currentX = 0, currentY = 0;
+            let isDragging = false; let startX = 0, startY = 0, currentX = 0, currentY = 0;
             const threshold = window.innerWidth * 0.25;
 
             card.addEventListener('touchstart', (e) => {
-                isDragging = true;
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
+                isDragging = true; startX = e.touches[0].clientX; startY = e.touches[0].clientY;
                 card.classList.remove('animating');
             }, {passive: true});
 
             card.addEventListener('touchmove', (e) => {
                 if (!isDragging) return;
-                currentX = e.touches[0].clientX - startX;
-                currentY = e.touches[0].clientY - startY;
-                
+                currentX = e.touches[0].clientX - startX; currentY = e.touches[0].clientY - startY;
                 if (Math.abs(currentX) > Math.abs(currentY) && e.cancelable) e.preventDefault();
-
-                const rotation = currentX * 0.05;
-                card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotation}deg)`;
+                card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${currentX * 0.05}deg)`;
             }, {passive: false});
 
             card.addEventListener('touchend', (e) => {
                 if (!isDragging) return;
                 isDragging = false;
-                
                 if (Math.abs(currentX) < 10 && Math.abs(currentY) < 10) {
                     card.style.transform = 'scale(1) translateY(0px)';
-                    openMobileDetailStack(row);
-                    return;
+                    return openMobileDetailStack(row);
                 }
-
                 card.classList.add('animating');
                 if (Math.abs(currentX) > threshold) {
                     const endX = currentX > 0 ? window.innerWidth : -window.innerWidth;
                     card.style.transform = `translate(${endX}px, ${currentY}px) rotate(${currentX * 0.1}deg)`;
                     card.style.opacity = '0';
-                    
-                    setTimeout(() => {
-                        stackIndex = (stackIndex + 1) % filteredData.length;
-                        renderStack();
-                    }, 250);
+                    setTimeout(() => { stackIndex = (stackIndex + 1) % filteredData.length; renderStack(); }, 250);
                 } else {
                     card.style.transform = 'scale(1) translateY(0px) rotate(0deg)';
                 }
@@ -908,8 +937,7 @@
             document.getElementById('mobile-detail-stack').classList.replace('hidden', 'flex');
             document.getElementById('stack-detail-symbol').textContent = row.Symbol;
 
-            const sumContainer = document.getElementById('stack-summaries-container');
-            sumContainer.innerHTML = `
+            document.getElementById('stack-summaries-container').innerHTML = `
                 <div class="mb-4"><h4 class="text-[10px] text-emerald-400 uppercase tracking-widest mb-1">ST Bull</h4><p class="text-sm text-white/90">${row['ST Bull Summary'] || 'N/A'}</p></div>
                 <div class="mb-4"><h4 class="text-[10px] text-rose-400 uppercase tracking-widest mb-1">ST Bear</h4><p class="text-sm text-white/90">${row['ST Bear Summary'] || 'N/A'}</p></div>
                 <div class="mb-4"><h4 class="text-[10px] text-emerald-400 uppercase tracking-widest mb-1">LT Bull</h4><p class="text-sm text-white/90">${row['LT Bull Summary'] || 'N/A'}</p></div>
@@ -929,9 +957,7 @@
 
         function closeMobileDetailStack() {
             document.getElementById('mobile-detail-stack').classList.replace('flex', 'hidden');
-            ['overview','technical','financials','timeline','info'].forEach(id => {
-                document.getElementById(`stack-tv-${id}`).innerHTML = '';
-            });
+            ['overview','technical','financials','timeline','info'].forEach(id => { document.getElementById(`stack-tv-${id}`).innerHTML = ''; });
         }
 
         function selectStockDesktop(row) {
@@ -957,20 +983,16 @@
             summaryIdx = 0;
             renderSummaryCard();
 
-            const badgesContainer = document.getElementById('dash-badges');
-            const createBadge = (text, type) => {
+            const createBadge = (text) => {
                 if(!text || text === 'None' || text === 'N/A') return '';
                 let bg = 'bg-white/10 text-white';
                 if(text.includes('Bull')) bg = 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
                 if(text.includes('Bear')) bg = 'bg-rose-500/20 text-rose-400 border border-rose-500/30';
                 return `<span class="px-3 py-1 rounded-full text-xs font-semibold ${bg}">${text}</span>`;
             };
-            
-            badgesContainer.innerHTML = [
-                createBadge(row['Selected_Seeds'], 'seed'),
-                createBadge(row['ST Sentiment'], 'st'),
-                createBadge(row['LT Sentiment'], 'lt'),
-                createBadge(row['Trading_Setup'], 'setup')
+            document.getElementById('dash-badges').innerHTML = [
+                createBadge(row['Selected_Seeds']), createBadge(row['ST Sentiment']),
+                createBadge(row['LT Sentiment']), createBadge(row['Trading_Setup'])
             ].filter(Boolean).join('');
 
             const grid = document.getElementById('metrics-grid');
@@ -988,11 +1010,9 @@
             const content = document.getElementById('filters-content');
             const chevron = document.getElementById('filters-chevron');
             if (content.classList.contains('hidden')) {
-                content.classList.remove('hidden');
-                chevron.style.transform = 'rotate(180deg)';
+                content.classList.remove('hidden'); chevron.style.transform = 'rotate(180deg)';
             } else {
-                content.classList.add('hidden');
-                chevron.style.transform = 'rotate(0deg)';
+                content.classList.add('hidden'); chevron.style.transform = 'rotate(0deg)';
             }
         }
 
@@ -1029,11 +1049,9 @@
             const content = document.getElementById('metrics-content');
             const chevron = document.getElementById('metrics-chevron');
             if (content.classList.contains('hidden')) {
-                content.classList.remove('hidden');
-                chevron.style.transform = 'rotate(180deg)';
+                content.classList.remove('hidden'); chevron.style.transform = 'rotate(180deg)';
             } else {
-                content.classList.add('hidden');
-                chevron.style.transform = 'rotate(0deg)';
+                content.classList.add('hidden'); chevron.style.transform = 'rotate(0deg)';
             }
         }
 
@@ -1064,21 +1082,183 @@
             container.innerHTML = ''; 
             const widgetContainer = document.createElement('div');
             widgetContainer.className = 'tradingview-widget-container';
-            widgetContainer.style.height = '100%';
-            widgetContainer.style.width = '100%';
+            widgetContainer.style.height = '100%'; widgetContainer.style.width = '100%';
             const widgetDiv = document.createElement('div');
             widgetDiv.className = 'tradingview-widget-container__widget';
-            widgetDiv.style.height = '100%';
-            widgetDiv.style.width = '100%';
+            widgetDiv.style.height = '100%'; widgetDiv.style.width = '100%';
             const script = document.createElement('script');
-            script.type = 'text/javascript';
-            script.src = scriptSrc;
-            script.async = true;
-            script.textContent = JSON.stringify(config);
-            widgetContainer.appendChild(widgetDiv);
-            widgetContainer.appendChild(script);
-            container.appendChild(widgetContainer);
+            script.type = 'text/javascript'; script.src = scriptSrc; script.async = true; script.textContent = JSON.stringify(config);
+            widgetContainer.appendChild(widgetDiv); widgetContainer.appendChild(script); container.appendChild(widgetContainer);
         }
+
+        // ------------------ RAW DATA LOGIC ------------------
+
+        async function loadRawData() {
+            const url = 'portfolio/price_database.csv';
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const text = await response.text();
+                if (text.trim().toLowerCase().startsWith('<!doctype') || text.trim().toLowerCase().startsWith('<html')) throw new Error("Received HTML");
+                parseRawData(text);
+            } catch (error) {
+                console.warn("Raw Data CSV not found, reverting to mock.");
+                parseRawData(mockRawCsvData);
+            }
+        }
+
+        function parseRawData(csvString) {
+            Papa.parse(csvString, {
+                header: true, skipEmptyLines: true,
+                complete: function(results) {
+                    rawData = results.data.filter(row => row.Symbol && row.Symbol.trim() !== '');
+                    if (rawData.length === 0 && csvString !== mockRawCsvData) return parseRawData(mockRawCsvData);
+                    populateRawFilters();
+                    applyRawFilters();
+                }
+            });
+        }
+
+        function populateRawFilters() {
+            // Populate Dates
+            const dates = new Set();
+            let minPct = 0; let maxPct = 0;
+            
+            rawData.forEach(row => {
+                if (row['Date']) dates.add(row['Date']);
+                const pct = parseFloat(row['Price_Change_Pct']);
+                if (!isNaN(pct)) {
+                    if (pct < minPct) minPct = pct;
+                    if (pct > maxPct) maxPct = pct;
+                }
+            });
+
+            const dateSelect = document.getElementById('raw-filter-date');
+            dateSelect.innerHTML = '<option value="All">All</option>';
+            Array.from(dates).sort().reverse().forEach(date => {
+                const opt = document.createElement('option');
+                opt.value = date; opt.textContent = date; dateSelect.appendChild(opt);
+            });
+
+            // Populate Subreddits
+            const subSelect = document.getElementById('raw-filter-subreddit');
+            subSelect.innerHTML = '<option value="All">All</option>';
+            rawSubredditsList.forEach(sub => {
+                const opt = document.createElement('option');
+                opt.value = sub; opt.textContent = sub; subSelect.appendChild(opt);
+            });
+
+            // Configure % Change Slider
+            const slider = document.getElementById('raw-filter-pct');
+            const absMax = Math.max(Math.abs(minPct), Math.abs(maxPct)) || 1; // fallback to 1 if no data
+            slider.min = -absMax;
+            slider.max = absMax;
+            slider.value = -absMax;
+            document.getElementById('raw-pct-val').textContent = slider.value + '%';
+
+            // Populate Sort By
+            const sortSelect = document.getElementById('raw-sort-order');
+            const sortCols = ['Total Mentions', 'ST Strong Bull', 'ST Bull', 'ST Neutral', 'ST Bear', 'ST Strong Bear', 'LT Strong Bull', 'LT Bull', 'LT Neutral', 'LT Bear', 'LT Strong Bear'];
+            sortSelect.innerHTML = '';
+            sortCols.forEach(col => {
+                sortSelect.innerHTML += `<option value="${col}-desc">${col} (High to Low)</option><option value="${col}-asc">${col} (Low to High)</option>`;
+            });
+        }
+
+        function applyRawFilters() {
+            const date = document.getElementById('raw-filter-date').value;
+            const subreddit = document.getElementById('raw-filter-subreddit').value;
+            const symbolSearch = document.getElementById('raw-filter-ticker').value.trim().toLowerCase();
+            const minPct = parseFloat(document.getElementById('raw-filter-pct').value) || -9999;
+            const sortOrder = document.getElementById('raw-sort-order').value;
+
+            filteredRawData = rawData.filter(row => {
+                const matchDate = date === 'All' || row['Date'] === date;
+                const matchSymbol = row.Symbol.toLowerCase().includes(symbolSearch);
+                let matchSubreddit = true;
+                if (subreddit !== 'All') matchSubreddit = (parseFloat(row[subreddit]) || 0) > 0;
+                
+                const pct = parseFloat(row['Price_Change_Pct']);
+                const matchPct = isNaN(pct) ? false : pct >= minPct;
+
+                return matchDate && matchSymbol && matchSubreddit && matchPct;
+            });
+
+            filteredRawData.sort((a, b) => {
+                if (sortOrder) {
+                    const lastDashIdx = sortOrder.lastIndexOf('-');
+                    if (lastDashIdx === -1) return 0;
+                    const col = sortOrder.substring(0, lastDashIdx);
+                    const order = sortOrder.substring(lastDashIdx + 1);
+                    return order === 'desc' ? (parseFloat(b[col])||0) - (parseFloat(a[col])||0) : (parseFloat(a[col])||0) - (parseFloat(b[col])||0);
+                }
+                return 0;
+            });
+
+            rawCurrentPage = 1;
+            renderRawTable();
+        }
+
+        function renderRawTable() {
+            const headContainer = document.getElementById('raw-table-head');
+            const bodyContainer = document.getElementById('raw-table-body');
+            headContainer.innerHTML = '';
+            bodyContainer.innerHTML = '';
+
+            if (filteredRawData.length === 0) {
+                bodyContainer.innerHTML = `<tr><td class="p-4 text-center text-white/50" colspan="100%">No raw data matches criteria.</td></tr>`;
+                document.getElementById('raw-page-info').textContent = `Page 1 of 1`;
+                return;
+            }
+
+            const totalPages = Math.ceil(filteredRawData.length / rawRowsPerPage);
+            document.getElementById('raw-page-info').textContent = `Page ${rawCurrentPage} of ${totalPages}`;
+
+            const keys = Object.keys(filteredRawData[0]);
+            keys.forEach(key => {
+                headContainer.innerHTML += `<th class="p-3 font-semibold text-white/80 border-b border-white/10">${key.replace(/_/g, ' ')}</th>`;
+            });
+
+            const startIdx = (rawCurrentPage - 1) * rawRowsPerPage;
+            const pageData = filteredRawData.slice(startIdx, startIdx + rawRowsPerPage);
+
+            pageData.forEach(row => {
+                let trContent = '';
+                keys.forEach(key => {
+                    let val = row[key] || '-';
+                    if (key === 'Price_Change_Pct' && val !== '-') {
+                        const pct = parseFloat(val);
+                        val = !isNaN(pct) ? (pct > 0 ? '+' : '') + pct.toFixed(2) + '%' : val;
+                    }
+                    trContent += `<td class="p-3 text-white/70 max-w-[200px] truncate" title="${val}">${val}</td>`;
+                });
+                bodyContainer.innerHTML += `<tr class="hover:bg-white/5 transition-colors cursor-default">${trContent}</tr>`;
+            });
+        }
+
+        function changeRawPage(direction) {
+            const totalPages = Math.ceil(filteredRawData.length / rawRowsPerPage);
+            const newPage = rawCurrentPage + direction;
+            if (newPage >= 1 && newPage <= totalPages) {
+                rawCurrentPage = newPage;
+                renderRawTable();
+            }
+        }
+
+        function openRawDataView() {
+            document.getElementById('raw-data-view').classList.remove('hidden');
+            document.getElementById('raw-data-view').classList.add('flex');
+            // If data is already loaded but table wasn't rendered yet
+            if(filteredRawData.length > 0 && document.getElementById('raw-table-body').innerHTML.trim() === '') {
+                renderRawTable();
+            }
+        }
+
+        function closeRawDataView() {
+            document.getElementById('raw-data-view').classList.add('hidden');
+            document.getElementById('raw-data-view').classList.remove('flex');
+        }
+
     </script>
 </body>
 </html>
