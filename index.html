@@ -126,62 +126,71 @@
     <div class="bg-glow"></div>
 
     <!-- Sidebar: Filters and List -->
-    <div id="sidebar" class="sidebar-section w-full md:w-96 flex flex-col h-full border-r border-white/10 glass-panel z-10 flex-shrink-0">
+    <div id="sidebar" class="sidebar-section w-full md:w-[420px] flex flex-col h-full border-r border-white/10 glass-panel z-10 flex-shrink-0">
         <div class="p-5 border-b border-white/10">
-            <h1 class="text-xl font-semibold mb-6 tracking-tight">Signal Scanner</h1>
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-xl font-semibold tracking-tight">Seeds Engine</h1>
+                <button onclick="openGlossaryModal()" class="text-xs px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors font-medium text-white/90 border border-white/10">Glossary</button>
+            </div>
             
             <!-- Ticker Search & Sort -->
             <div class="flex gap-2 mb-4">
                 <input type="text" id="filter-ticker" placeholder="Search Ticker..." 
                     class="w-1/2 text-xs p-2 rounded-lg glass-input">
                 <select id="sort-order" class="w-1/2 text-xs p-2 rounded-lg glass-input appearance-none">
-                    <option value="mentions-desc">Mentions (High to Low)</option>
-                    <option value="mentions-asc">Mentions (Low to High)</option>
+                    <option value="Total Mentions-desc">Mentions (High to Low)</option>
+                    <option value="Total Mentions-asc">Mentions (Low to High)</option>
                     <option value="alpha">Alphabetical</option>
                 </select>
             </div>
 
-            <!-- Filters -->
-            <div class="grid grid-cols-2 gap-3 text-xs">
-                <div>
-                    <label class="text-white/50 mb-1 block">Trading Setup</label>
-                    <select id="filter-setup" class="w-full p-2 rounded-lg glass-input appearance-none">
-                        <option value="All">All</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-white/50 mb-1 block">ST Sentiment</label>
-                    <select id="filter-st-sent" class="w-full p-2 rounded-lg glass-input appearance-none">
-                        <option value="All">All</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-white/50 mb-1 block">LT Sentiment</label>
-                    <select id="filter-lt-sent" class="w-full p-2 rounded-lg glass-input appearance-none">
-                        <option value="All">All</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-white/50 mb-1 block">Trajectory Setup</label>
-                    <select id="filter-traj" class="w-full p-2 rounded-lg glass-input appearance-none">
-                        <option value="All">All</option>
-                    </select>
-                </div>
-                <!-- Subreddit Filter -->
-                <div class="col-span-2">
-                    <label class="text-white/50 mb-1 block">Subreddit Activity (> 0 Mentions)</label>
-                    <select id="filter-subreddit" class="w-full p-2 rounded-lg glass-input appearance-none">
-                        <option value="All">All</option>
-                    </select>
-                </div>
-                <!-- Mentions Slider -->
-                <div class="col-span-2 mt-1">
-                    <div class="flex justify-between items-center text-white/50 mb-2">
-                        <label>Min Total Mentions</label>
-                        <span id="mentions-val" class="font-semibold text-white">0</span>
+            <!-- Filters Toggle -->
+            <button onclick="toggleFilters()" class="w-full flex items-center justify-between py-2 mb-1 text-sm font-medium text-white/70 hover:text-white transition-colors">
+                <span>Advanced Filters</span>
+                <svg id="filters-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="transition-transform duration-300 transform rotate-180">
+                    <path d="M6 9l6 6 6-6"/>
+                </svg>
+            </button>
+
+            <!-- Collapsible Filters -->
+            <div id="filters-content" class="mt-2">
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="col-span-2">
+                        <label class="text-white/50 mb-1 block">Curated Seeds</label>
+                        <select id="filter-seeds" class="w-full p-2 rounded-lg glass-input appearance-none">
+                            <option value="All">All</option>
+                        </select>
                     </div>
-                    <input type="range" id="filter-mentions" min="0" max="100" value="0" 
-                        class="w-full accent-emerald-500 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer">
+                    <div>
+                        <label class="text-white/50 mb-1 block">Trading Setup</label>
+                        <select id="filter-setup" class="w-full p-2 rounded-lg glass-input appearance-none">
+                            <option value="All">All</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-white/50 mb-1 block">ST Sentiment</label>
+                        <select id="filter-st-sent" class="w-full p-2 rounded-lg glass-input appearance-none">
+                            <option value="All">All</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-white/50 mb-1 block">LT Sentiment</label>
+                        <select id="filter-lt-sent" class="w-full p-2 rounded-lg glass-input appearance-none">
+                            <option value="All">All</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-white/50 mb-1 block">Trajectory Setup</label>
+                        <select id="filter-traj" class="w-full p-2 rounded-lg glass-input appearance-none">
+                            <option value="All">All</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-white/50 mb-1 block">Subreddit Activity (> 0 Mentions)</label>
+                        <select id="filter-subreddit" class="w-full p-2 rounded-lg glass-input appearance-none">
+                            <option value="All">All</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -263,9 +272,7 @@
                 </div>
 
                 <!-- 3, 4, 5, 6. Secondary Widgets Grid -->
-                <!-- Order customized for flow: Technical -> Financials -> News -> Info -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    
                     <!-- Technical Analysis -->
                     <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative order-1">
                         <div id="tv-technical" class="w-full h-full rounded-xl overflow-hidden"></div>
@@ -353,10 +360,70 @@
         </div>
     </div>
 
+    <!-- Glossary Modal -->
+    <div id="glossary-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div class="glass-panel p-6 md:p-8 rounded-2xl border border-white/10 max-w-4xl w-full relative shadow-2xl flex flex-col max-h-[85vh]">
+            <!-- Close Button -->
+            <button onclick="closeGlossaryModal()" class="absolute top-4 right-4 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-colors z-10">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+            
+            <h3 class="text-xl font-bold mb-6 uppercase tracking-widest text-emerald-400">Clinical Glossary</h3>
+            
+            <div class="overflow-y-auto pr-4 custom-scrollbar text-sm md:text-base text-white/80 space-y-6 pb-6">
+                <div>
+                    <h4 class="font-bold text-white mb-3 text-lg">1. Core Sentiment Metrics (Single-Day Snapshot)</h4>
+                    <ul class="space-y-4">
+                        <li><strong class="text-white">Weighted Net Sentiment Score (NSS_Raw):</strong> A raw numerical value quantifying the absolute directional conviction of retail sentiment. It assigns double weight to "Strong" sentiment markers (Strong Bull/Strong Bear) to prioritize high-conviction opinions over casual mentions.</li>
+                        <li><strong class="text-white">Normalized NSS (NSS_Norm):</strong> The NSS scaled by the total number of stock mentions. This generates a standardized value between -2.0 (maximum bearishness) and +2.0 (maximum bullishness), enabling direct comparison between low-visibility and high-visibility equities. Calculated independently for Short-Term (ST) and Long-Term (LT) horizons.</li>
+                        <li><strong class="text-white">Bull-to-Bear Ratio (BBR):</strong> A pure volume metric representing the proportion of positive sentiment to negative sentiment, discarding neutral data. A value above 1.0 indicates bullish dominance; below 1.0 indicates bearish dominance.</li>
+                        <li><strong class="text-white">Horizon Divergence Delta (HDD):</strong> The calculated difference between the Short-Term Normalized NSS and the Long-Term Normalized NSS (ST_NSS_Norm - LT_NSS_Norm). It measures the spread between immediate retail reaction (hype/panic) and underlying fundamental conviction.</li>
+                        <li><strong class="text-white">Polarization Index:</strong> A metric measuring the concentration of extreme sentiment (Strong Bull + Strong Bear) relative to total discussion volume across both time horizons. High values indicate highly contested, volatile equities; low values indicate consensus or a lack of aggressive directional bias.</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold text-white mb-3 text-lg">2. Time-Series Metrics (Historical 21-Day Rolling Math)</h4>
+                    <ul class="space-y-4">
+                        <li><strong class="text-white">Relative Mention Volume (RVol):</strong> A measure of current attention versus the historical baseline. Calculated as today's Total Mentions divided by the 20-Day Simple Moving Average (SMA) of Total Mentions. A value of 2.0 indicates chatter is currently double the normal rate.</li>
+                        <li><strong class="text-white">Sentiment Velocity (NSS Delta):</strong> Measures the speed and direction of sentiment shifts. Calculated as today's ST Normalized NSS minus the 3-Day SMA of the ST Normalized NSS. Positive values indicate a sudden influx of bullishness; negative values indicate sudden panic.</li>
+                        <li><strong class="text-white">Polarization Z-Score:</strong> A statistical measure of crowd division anomaly. Calculates how many standard deviations today's Polarization Index is from the 20-day mean. A Z-score > 2.0 indicates an unusual spike in disagreement, often preceding severe volatility or binary events.</li>
+                        <li><strong class="text-white">Setup Consistency (Duration):</strong> An integer counter tracking the number of consecutive days a stock has maintained its current Trading_Setup tag. Used to filter out 1-day noise anomalies and identify sustained, proven conviction.</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-white mb-3 text-lg">3. Categorical & Qualitative Definitions</h4>
+                    <ul class="space-y-4">
+                        <li>
+                            <strong class="text-white">Value_Score:</strong> A continuous metric ranging from -1.0 to 1.0 that quantifies the qualitative nature of a stock's social volume.
+                            <ul class="list-disc pl-5 mt-2 space-y-1 text-white/70">
+                                <li><em>Calculation:</em> It is derived from a weighted average of subreddit mentions. Professional and fundamental subreddits (e.g., SecurityAnalysis, ValueInvesting) carry positive weights (up to +10), while speculative and derivative-focused subreddits (e.g., wallstreetbets, Daytrading) carry negative weights (down to -10).</li>
+                                <li><em>Interpretation:</em> A score approaching 1.0 indicates volume driven entirely by fundamental analysis. A score approaching -1.0 indicates volume driven entirely by retail speculation and hype. A score near 0 indicates mixed or neutral origin.</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong class="text-white">Selected_Seeds:</strong> A hierarchical classification system that identifies the trajectory and origin of social volume based on a 3-day rolling window.
+                            <ul class="list-disc pl-5 mt-2 space-y-2 text-white/70">
+                                <li><strong>New Seeds:</strong> Symbols registering positive mention volume on the current date, but which had exactly zero mentions over the preceding 3-day window. Indicates absolute initial discovery.</li>
+                                <li><strong>Viral Seeds:</strong> Symbols where current total mention volume exceeds the 3-day rolling average, the volume is net-bullish (Bull mentions > Bear mentions), and the symbol had existing baseline mentions in the prior 3 days. Indicates sudden, rapid acceleration in social interest.</li>
+                                <li><strong>Steady Hype Seeds:</strong> Symbols maintaining an uninterrupted presence (minimum 3-day daily mentions > 0) where the Value_Score remains weighted toward speculative subreddits (Score < -0.1). Indicates persistent retail gambling interest.</li>
+                                <li><strong>Steady Value Seeds:</strong> Symbols maintaining an uninterrupted presence (minimum 3-day daily mentions > 0) where the Value_Score remains weighted toward fundamental subreddits (Score > 0.1). Indicates sustained fundamental due diligence.</li>
+                                <li><strong>Growing Hype Seeds:</strong> Symbols where the current mention volume explicitly originating from speculative subreddits exceeds the 3-day rolling average for those specific subreddits, accompanied by a net-bullish sentiment.</li>
+                                <li><strong>Growing Value Seeds:</strong> Symbols where the current mention volume explicitly originating from fundamental subreddits exceeds the 3-day rolling average for those specific subreddits, accompanied by a net-bullish sentiment.</li>
+                                <li><strong>Dying Seeds:</strong> Symbols where the current bearish mention volume strictly exceeds the 3-day rolling average of bearish mentions. Indicates accelerating negative sentiment, regardless of the underlying subreddit origin.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const mockCsvData = `Date,Symbol,Total Mentions,stocks,wallstreetbets,options,ST Sentiment,LT Sentiment,Trading_Setup,Trajectory_Setup,ST_NSS_Norm,LT_NSS_Norm,Setup_Duration,RVol,ST Bull Summary,ST Bear Summary,LT Bull Summary,LT Bear Summary
-2026-04-10,AAOI,8,2,6,0,Very Bull,Very Bull,Breakout,Upward,1.0,1.0,1,1.5,Strong upside momentum detected on recent earnings.,Overbought conditions might trigger slight pullback.,Positioned well for next gen fiber rollouts.,Supply chain constraints remain a risk factor.
-2026-04-10,AAPL,150,50,80,20,Bull,Bull,Consolidation,Stable,0.8,0.7,3,0.9,Approaching key support levels offering entry point.,Regulatory headwinds continue to suppress short term growth.,Services revenue expanding margins steadily.,Hardware supercycle relies heavily on uncertain consumer demand.`;
+        const mockCsvData = `Date,Symbol,Total Mentions,stocks,wallstreetbets,options,ST Sentiment,LT Sentiment,Trading_Setup,Trajectory_Setup,ST_NSS_Norm,LT_NSS_Norm,Setup_Duration,RVol,ST Bull Summary,ST Bear Summary,LT Bull Summary,LT Bear Summary,Value_Score,Selected_Seeds
+2026-04-10,AAOI,8,2,6,0,Very Bull,Very Bull,Breakout,Upward,1.0,1.0,1,1.5,Strong upside momentum detected on recent earnings.,Overbought conditions might trigger slight pullback.,Positioned well for next gen fiber rollouts.,Supply chain constraints remain a risk factor.,-0.6,Steady Hype Seeds
+2026-04-10,AAPL,150,50,80,20,Bull,Bull,Consolidation,Stable,0.8,0.7,3,0.9,Approaching key support levels offering entry point.,Regulatory headwinds continue to suppress short term growth.,Services revenue expanding margins steadily.,Hardware supercycle relies heavily on uncertain consumer demand.,0.3,Steady Value Seeds`;
 
         let globalData = [];
         let filteredData = [];
@@ -378,19 +445,13 @@
         });
 
         function setupFilterListeners() {
-            const filters = ['setup', 'st-sent', 'lt-sent', 'traj', 'subreddit', 'sort-order'];
+            const filters = ['seeds', 'setup', 'st-sent', 'lt-sent', 'traj', 'subreddit', 'sort-order'];
             filters.forEach(f => {
                 const el = document.getElementById(f === 'sort-order' ? f : `filter-${f}`);
                 if (el) el.addEventListener('change', applyFilters);
             });
             
             document.getElementById('filter-ticker').addEventListener('input', applyFilters);
-            
-            const mentionsSlider = document.getElementById('filter-mentions');
-            mentionsSlider.addEventListener('input', (e) => {
-                document.getElementById('mentions-val').textContent = e.target.value;
-            });
-            mentionsSlider.addEventListener('change', applyFilters);
         }
 
         async function loadData() {
@@ -426,11 +487,11 @@
         }
 
         function populateFilters() {
+            const seedsSet = new Set();
             const setups = new Set();
             const stSents = new Set();
             const ltSents = new Set();
             const trajs = new Set();
-            let maxMentions = 0;
 
             // Dynamically identify subreddits based on column position (between Total Mentions and ST Sentiment related fields)
             if (globalData.length > 0) {
@@ -448,15 +509,14 @@
             }
 
             globalData.forEach(row => {
+                if (row['Selected_Seeds']) seedsSet.add(row['Selected_Seeds']);
                 if (row['Trading_Setup']) setups.add(row['Trading_Setup']);
                 if (row['ST Sentiment']) stSents.add(row['ST Sentiment']);
                 if (row['LT Sentiment']) ltSents.add(row['LT Sentiment']);
                 if (row['Trajectory_Setup']) trajs.add(row['Trajectory_Setup']);
-                
-                const mentions = parseInt(row['Total Mentions']) || 0;
-                if (mentions > maxMentions) maxMentions = mentions;
             });
 
+            fillSelect('filter-seeds', seedsSet);
             fillSelect('filter-setup', setups);
             fillSelect('filter-st-sent', stSents);
             fillSelect('filter-lt-sent', ltSents);
@@ -471,14 +531,50 @@
                 subSelect.appendChild(opt);
             });
 
-            const mentionsSlider = document.getElementById('filter-mentions');
-            mentionsSlider.max = maxMentions;
-            mentionsSlider.value = 0;
-            document.getElementById('mentions-val').textContent = '0';
+            // Dynamically populate sort-order dropdown with numerical metrics
+            const sortSelect = document.getElementById('sort-order');
+            sortSelect.innerHTML = `
+                <option value="Total Mentions-desc">Mentions (High to Low)</option>
+                <option value="Total Mentions-asc">Mentions (Low to High)</option>
+                <option value="alpha">Alphabetical</option>
+            `;
+            
+            const excludeFromSort = new Set(['Date', 'Symbol', 'Total Mentions', 'Selected_Seeds', ...subredditsList]);
+            const numericCols = new Set();
+            
+            if (globalData.length > 0) {
+                const keys = Object.keys(globalData[0]);
+                keys.forEach(key => {
+                    if (!excludeFromSort.has(key)) {
+                        const rowWithValue = globalData.find(r => r[key] !== undefined && r[key] !== null && r[key].toString().trim() !== '');
+                        if (rowWithValue) {
+                            const valStr = rowWithValue[key].toString().trim();
+                            if (!isNaN(Number(valStr))) {
+                                numericCols.add(key);
+                            }
+                        }
+                    }
+                });
+            }
+
+            Array.from(numericCols).sort().forEach(col => {
+                const cleanName = col.replace(/_/g, ' ');
+                const optDesc = document.createElement('option');
+                optDesc.value = `${col}-desc`;
+                optDesc.textContent = `${cleanName} (High to Low)`;
+                
+                const optAsc = document.createElement('option');
+                optAsc.value = `${col}-asc`;
+                optAsc.textContent = `${cleanName} (Low to High)`;
+                
+                sortSelect.appendChild(optDesc);
+                sortSelect.appendChild(optAsc);
+            });
         }
 
         function fillSelect(id, set) {
             const select = document.getElementById(id);
+            if (!select) return;
             select.innerHTML = '<option value="All">All</option>';
             Array.from(set).filter(Boolean).sort().forEach(val => {
                 const opt = document.createElement('option');
@@ -489,40 +585,52 @@
         }
 
         function applyFilters() {
+            const seeds = document.getElementById('filter-seeds').value;
             const setup = document.getElementById('filter-setup').value;
             const stSent = document.getElementById('filter-st-sent').value;
             const ltSent = document.getElementById('filter-lt-sent').value;
             const traj = document.getElementById('filter-traj').value;
             const subreddit = document.getElementById('filter-subreddit').value;
-            const minMentions = parseInt(document.getElementById('filter-mentions').value) || 0;
             const tickerSearch = document.getElementById('filter-ticker').value.trim().toLowerCase();
             const sortOrder = document.getElementById('sort-order').value;
 
             filteredData = globalData.filter(row => {
                 const symbolMatch = row.Symbol.toLowerCase().includes(tickerSearch);
+                const seedsMatch = seeds === 'All' || row['Selected_Seeds'] === seeds;
                 const setupMatch = setup === 'All' || row['Trading_Setup'] === setup;
                 const stSentMatch = stSent === 'All' || row['ST Sentiment'] === stSent;
                 const ltSentMatch = ltSent === 'All' || row['LT Sentiment'] === ltSent;
                 const trajMatch = traj === 'All' || row['Trajectory_Setup'] === traj;
-                const mentionsMatch = (parseInt(row['Total Mentions']) || 0) >= minMentions;
                 
                 let subredditMatch = true;
                 if (subreddit !== 'All') {
                     subredditMatch = (parseFloat(row[subreddit]) || 0) > 0;
                 }
 
-                return symbolMatch && setupMatch && stSentMatch && ltSentMatch && trajMatch && mentionsMatch && subredditMatch;
+                return symbolMatch && seedsMatch && setupMatch && stSentMatch && ltSentMatch && trajMatch && subredditMatch;
             });
 
             // Sorting logic
             filteredData.sort((a, b) => {
-                if (sortOrder === 'mentions-desc') {
-                    return (parseInt(b['Total Mentions']) || 0) - (parseInt(a['Total Mentions']) || 0);
-                } else if (sortOrder === 'mentions-asc') {
-                    return (parseInt(a['Total Mentions']) || 0) - (parseInt(b['Total Mentions']) || 0);
-                } else {
+                if (sortOrder === 'alpha') {
                     return a.Symbol.localeCompare(b.Symbol);
+                } else if (sortOrder) {
+                    const lastDashIdx = sortOrder.lastIndexOf('-');
+                    if (lastDashIdx === -1) return 0;
+                    
+                    const col = sortOrder.substring(0, lastDashIdx);
+                    const order = sortOrder.substring(lastDashIdx + 1);
+                    
+                    const valA = parseFloat(a[col]) || 0;
+                    const valB = parseFloat(b[col]) || 0;
+                    
+                    if (order === 'desc') {
+                        return valB - valA;
+                    } else {
+                        return valA - valB;
+                    }
                 }
+                return 0;
             });
 
             renderList();
@@ -548,14 +656,41 @@
                 if (st.includes('Bull')) sentColor = 'text-emerald-400';
                 if (st.includes('Bear')) sentColor = 'text-rose-400';
 
+                const seedText = row['Selected_Seeds'] || 'Uncategorized';
+                const valueScore = parseFloat(row['Value_Score']) || 0;
+                const clampedScore = Math.max(-1, Math.min(1, valueScore));
+                const rotation = clampedScore * 90; // -1 -> -90deg, 1 -> 90deg
+
                 div.innerHTML = `
-                    <div>
-                        <div class="font-bold text-lg">${row.Symbol}</div>
-                        <div class="text-xs text-white/50 mt-1">${row['Trading_Setup'] || 'N/A'}</div>
+                    <div class="flex-[1.2] min-w-0 pr-2">
+                        <div class="font-bold text-lg truncate">${row.Symbol}</div>
+                        <div class="text-[10px] text-white/50 mt-1 truncate">${row['Trading_Setup'] || 'N/A'}</div>
+                        <div class="text-[10px] text-emerald-400/80 mt-0.5 truncate">${seedText}</div>
                     </div>
-                    <div class="text-right">
-                        <div class="text-xs font-medium ${sentColor}">${st}</div>
-                        <div class="text-[10px] text-white/30 mt-1">Vol: ${row.RVol || '-'} &middot; Men: ${row['Total Mentions'] || 0}</div>
+                    
+                    <div class="flex-1 flex flex-col items-center justify-center border-x border-white/10 px-2 mx-1">
+                        <div class="relative w-[52px] h-[26px] mt-1">
+                            <svg viewBox="0 0 100 50" class="w-full h-full overflow-visible">
+                                <defs>
+                                    <linearGradient id="grad-${row.Symbol}" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#fb7185" />
+                                        <stop offset="50%" stop-color="#64748b" />
+                                        <stop offset="100%" stop-color="#34d399" />
+                                    </linearGradient>
+                                </defs>
+                                <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="url(#grad-${row.Symbol})" stroke-width="12" stroke-linecap="round"/>
+                                <polygon points="46,55 54,55 50,5" fill="#ffffff" transform="rotate(${rotation}, 50, 50)"/>
+                                <circle cx="50" cy="50" r="6" fill="#ffffff" />
+                            </svg>
+                            <div class="absolute -bottom-3 left-[-8px] text-[8px] text-white/40 tracking-tighter">HYPE</div>
+                            <div class="absolute -bottom-3 right-[-8px] text-[8px] text-white/40 tracking-tighter">VALUE</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-[0.8] text-right pl-2">
+                        <div class="text-xs font-medium ${sentColor} truncate">${st}</div>
+                        <div class="text-[10px] text-white/40 mt-1 truncate">Vol: ${row.RVol || '-'}</div>
+                        <div class="text-[10px] text-white/40 mt-0.5 truncate">Men: ${row['Total Mentions'] || 0}</div>
                     </div>
                 `;
                 
@@ -603,6 +738,7 @@
             };
             
             const badgesHTML = [
+                createBadge(row['Selected_Seeds'], 'seed'),
                 createBadge(row['ST Sentiment'], 'st'),
                 createBadge(row['LT Sentiment'], 'lt'),
                 createBadge(row['Trading_Setup'], 'setup')
@@ -611,6 +747,20 @@
 
             renderMetricsGrid(row);
             injectTVWidgets(row.Symbol);
+        }
+
+        // --- Filters Toggle ---
+        function toggleFilters() {
+            const content = document.getElementById('filters-content');
+            const chevron = document.getElementById('filters-chevron');
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                chevron.style.transform = 'rotate(180deg)';
+            } else {
+                content.classList.add('hidden');
+                chevron.style.transform = 'rotate(0deg)';
+            }
         }
 
         // --- Summary Card Navigation & Modal ---
@@ -654,7 +804,6 @@
         }
 
         function openSummaryModal() {
-            // Render to ensure UI matches current state
             renderSummaryCard();
             document.getElementById('summary-modal').classList.remove('hidden');
         }
@@ -663,11 +812,21 @@
             document.getElementById('summary-modal').classList.add('hidden');
         }
 
-        // Close modal on background click
+        // --- Glossary Modal ---
+        function openGlossaryModal() {
+            document.getElementById('glossary-modal').classList.remove('hidden');
+        }
+
+        function closeGlossaryModal() {
+            document.getElementById('glossary-modal').classList.add('hidden');
+        }
+
+        // Close modals on background click
         document.getElementById('summary-modal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeSummaryModal();
-            }
+            if (e.target === this) closeSummaryModal();
+        });
+        document.getElementById('glossary-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeGlossaryModal();
         });
 
         // --- Collapsible Metrics ---
@@ -689,7 +848,7 @@
             grid.innerHTML = '';
             
             // Exclude text-heavy or redundant columns from the quantitative grid
-            const excludedKeys = ['Symbol', 'Date', 'ST Bull Summary', 'ST Bear Summary', 'LT Bull Summary', 'LT Bear Summary', 'ST_Bullish_Text', 'ST_Bearish_Text', 'LT_Bullish_Text', 'LT_Bearish_Text'];
+            const excludedKeys = ['Symbol', 'Date', 'ST Bull Summary', 'ST Bear Summary', 'LT Bull Summary', 'LT Bear Summary', 'ST_Bullish_Text', 'ST_Bearish_Text', 'LT_Bullish_Text', 'LT_Bearish_Text', 'Selected_Seeds'];
             
             Object.entries(dataRow).forEach(([key, value]) => {
                 if (excludedKeys.includes(key) || !value || value.length > 50) return;
