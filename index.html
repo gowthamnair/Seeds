@@ -1038,7 +1038,7 @@
         }
 
         function injectTVWidgets(symbol, prefix = '') {
-            const tvSymbol = `NASDAQ:${symbol}`;
+            const tvSymbol = symbol;
             const pfx = prefix ? `${prefix}-tv-` : 'tv-';
 
             renderTVWidget(`${pfx}overview`, 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js', {
