@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Intelligence Dashboard</title>
+    <title>Seeds Engine Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -54,6 +54,14 @@
             background: rgba(255, 255, 255, 0.3);
         }
 
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
         /* Background ambient glow */
         .bg-glow {
             position: fixed;
@@ -67,7 +75,6 @@
             pointer-events: none;
         }
 
-        /* TradingView container normalization */
         .tv-widget-box {
             width: 100%;
             height: 100%;
@@ -91,6 +98,8 @@
             .sidebar-section {
                 width: 100%;
                 height: 100vh;
+                display: flex;
+                flex-direction: column;
             }
             .dashboard-section {
                 width: 100%;
@@ -101,9 +110,6 @@
             body:not(.view-dashboard) .dashboard-section {
                 display: none !important;
             }
-            body:not(.view-dashboard) .sidebar-section {
-                display: flex !important;
-            }
             body.view-dashboard .sidebar-section {
                 display: none !important;
             }
@@ -112,7 +118,6 @@
             }
         }
 
-        /* Transition utilities */
         .transition-transform { transition: transform 0.3s ease; }
         .line-clamp-4 {
             display: -webkit-box;
@@ -120,14 +125,39 @@
             -webkit-box-orient: vertical;  
             overflow: hidden;
         }
+
+        /* Tinder Stack Specifics */
+        #stock-stack {
+            perspective: 1000px;
+        }
+        .swipe-card {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            transform-origin: 50% 100%;
+            will-change: transform;
+            touch-action: none;
+        }
+        .swipe-card.animating {
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+        }
     </style>
 </head>
 <body class="flex flex-col md:flex-row antialiased mobile-view-container">
     <div class="bg-glow"></div>
 
-    <!-- Sidebar: Filters and List -->
+    <!-- Sidebar: Filters, List, and Stack -->
     <div id="sidebar" class="sidebar-section w-full md:w-[420px] flex flex-col h-full border-r border-white/10 glass-panel z-10 flex-shrink-0">
-        <div class="p-5 border-b border-white/10">
+        
+        <!-- Mobile View Toggle (Hidden on Desktop) -->
+        <div class="md:hidden flex p-1 bg-white/5 rounded-lg mx-5 mt-5 mb-0 border border-white/10">
+            <button id="btn-view-list" onclick="setMobileMode('list')" class="flex-1 py-2 text-xs font-semibold rounded-md bg-white/10 text-white transition-all shadow-sm">List View</button>
+            <button id="btn-view-stack" onclick="setMobileMode('stack')" class="flex-1 py-2 text-xs font-semibold rounded-md text-white/50 hover:text-white transition-all">Stack View</button>
+        </div>
+
+        <div class="p-5 border-b border-white/10 flex-shrink-0">
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-xl font-semibold tracking-tight">Seeds Engine</h1>
                 <button onclick="openGlossaryModal()" class="text-xs px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors font-medium text-white/90 border border-white/10">Glossary</button>
@@ -195,20 +225,27 @@
             </div>
         </div>
 
-        <!-- Stock List -->
-        <div id="stock-list" class="flex-1 overflow-y-auto p-3 space-y-2">
-            <div class="text-center text-white/50 text-sm mt-10">Loading data...</div>
+        <!-- Dynamic Content Area -->
+        <div class="flex-1 relative overflow-hidden flex flex-col">
+            <!-- List View (Default) -->
+            <div id="stock-list" class="absolute inset-0 overflow-y-auto p-3 space-y-2">
+                <div class="text-center text-white/50 text-sm mt-10">Loading data...</div>
+            </div>
+
+            <!-- Stack View (Hidden by Default) -->
+            <div id="stock-stack" class="hidden absolute inset-0 p-6 flex flex-col items-center justify-center">
+                <!-- Stack cards injected here -->
+            </div>
         </div>
     </div>
 
-    <!-- Dashboard: Metrics and Widgets -->
+    <!-- Desktop Dashboard (Web View) -->
     <div id="dashboard" class="dashboard-section flex-1 h-full overflow-y-auto relative hidden md:block pb-10">
-        
-        <!-- Mobile Back Button -->
+        <!-- Mobile Back Button (List Detail View) -->
         <div class="sticky top-0 z-20 md:hidden p-4 glass-panel border-b border-white/10 flex items-center justify-between shadow-lg">
             <button onclick="backToList()" class="text-sm font-medium bg-white/10 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-white/20 transition-colors">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                Back to List
+                Back
             </button>
             <span id="mobile-ticker-title" class="font-bold text-lg tracking-tight"></span>
         </div>
@@ -217,26 +254,20 @@
             <!-- Header -->
             <div class="mb-8 flex items-end justify-between">
                 <div>
-                    <h2 id="dash-symbol" class="text-4xl font-bold tracking-tighter">AAPL</h2>
+                    <h2 id="dash-symbol" class="text-4xl font-bold tracking-tighter"></h2>
                     <p id="dash-date" class="text-white/50 text-sm mt-1"></p>
                 </div>
-                <div class="flex gap-2" id="dash-badges">
-                    <!-- Badges injected here -->
-                </div>
+                <div class="flex gap-2" id="dash-badges"></div>
             </div>
 
-            <!-- Ordered Flow of Modules -->
             <div class="flex flex-col gap-6">
-                
-                <!-- 1. Main Chart Overview (Ticker Widget) -->
+                <!-- Overview -->
                 <div class="glass-panel p-1 rounded-2xl border border-white/10 h-[500px]">
                     <div id="tv-overview" class="w-full h-full rounded-xl overflow-hidden relative"></div>
                 </div>
 
-                <!-- 2. Qualitative Summaries Card Component -->
+                <!-- Qualitative Summaries Card Component -->
                 <div class="glass-panel rounded-2xl border border-white/10 p-6 relative flex flex-col justify-center min-h-[240px]">
-                    
-                    <!-- Header: Title & Expand Button -->
                     <div class="absolute top-5 left-6 right-6 flex justify-between items-center z-20">
                         <span class="text-sm font-semibold text-white/50 uppercase tracking-wider">Retail Sentiment Summary</span>
                         <button onclick="openSummaryModal()" class="p-1 text-white/50 hover:text-white hover:bg-white/10 rounded transition-colors" title="Expand Details">
@@ -245,24 +276,18 @@
                     </div>
 
                     <div class="flex items-center justify-between w-full h-full mt-8">
-                        <!-- Left Arrow -->
                         <button onclick="prevSummary()" class="p-2 rounded-full hover:bg-white/10 transition-colors z-10 flex-shrink-0 text-white/50 hover:text-white">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
                         </button>
-                        
-                        <!-- Content -->
                         <div class="text-center flex-1 px-4 max-w-3xl mx-auto h-full flex flex-col justify-center">
-                            <h3 id="summary-title" class="text-base font-bold mb-4 uppercase tracking-widest text-emerald-400">Short Term Bull</h3>
-                            <p id="summary-text" class="text-sm md:text-base leading-relaxed text-white/80 line-clamp-4">Select a stock to view analytical summaries.</p>
+                            <h3 id="summary-title" class="text-base font-bold mb-4 uppercase tracking-widest text-emerald-400"></h3>
+                            <p id="summary-text" class="text-sm md:text-base leading-relaxed text-white/80 line-clamp-4"></p>
                         </div>
-                        
-                        <!-- Right Arrow -->
                         <button onclick="nextSummary()" class="p-2 rounded-full hover:bg-white/10 transition-colors z-10 flex-shrink-0 text-white/50 hover:text-white">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
                         </button>
                     </div>
 
-                    <!-- Pagination Dots -->
                     <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
                         <div id="dot-0" class="w-1.5 h-1.5 rounded-full bg-white/80 transition-colors duration-300"></div>
                         <div id="dot-1" class="w-1.5 h-1.5 rounded-full bg-white/20 transition-colors duration-300"></div>
@@ -271,30 +296,23 @@
                     </div>
                 </div>
 
-                <!-- 3, 4, 5, 6. Secondary Widgets Grid -->
+                <!-- Secondary Widgets Grid -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Technical Analysis -->
                     <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative order-1">
                         <div id="tv-technical" class="w-full h-full rounded-xl overflow-hidden"></div>
                     </div>
-
-                    <!-- Financials -->
                     <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative order-2">
                         <div id="tv-financials" class="w-full h-full rounded-xl overflow-hidden"></div>
                     </div>
-
-                    <!-- News (Timeline) -->
                     <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative order-3">
                         <div id="tv-timeline" class="w-full h-full rounded-xl overflow-hidden"></div>
                     </div>
-
-                    <!-- Info Widget -->
                     <div class="glass-panel p-1 rounded-2xl border border-white/10 tv-widget-box relative order-4">
                         <div id="tv-info" class="w-full h-full rounded-xl overflow-hidden"></div>
                     </div>
                 </div>
 
-                <!-- 7. Quantitative Metrics (Collapsible) -->
+                <!-- Quantitative Metrics -->
                 <div class="glass-panel rounded-2xl border border-white/10 mt-2">
                     <button onclick="toggleMetrics()" class="w-full flex items-center justify-between p-6 hover:bg-white/[0.02] transition-colors rounded-2xl">
                         <h3 class="text-sm font-semibold text-white/50 uppercase tracking-wider">Quantitative Metrics</h3>
@@ -302,55 +320,102 @@
                             <path d="M6 9l6 6 6-6"/>
                         </svg>
                     </button>
-                    <!-- Default open state (no 'hidden' class initially) -->
                     <div id="metrics-content" class="px-6 pb-6 pt-0 border-t border-white/5 mt-2">
-                        <div id="metrics-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 text-sm mt-4">
-                            <!-- Metrics injected here -->
-                        </div>
+                        <div id="metrics-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 text-sm mt-4"></div>
                     </div>
                 </div>
-
             </div>
         </div>
 
-        <!-- Empty State -->
         <div id="empty-state" class="absolute inset-0 flex items-center justify-center text-white/30 text-sm">
             Select a stock from the list to view intelligence.
         </div>
     </div>
 
-    <!-- Modal for Expanded Summary -->
+    <!-- MOBILE STACK DETAIL MODAL -->
+    <div id="mobile-detail-stack" class="fixed inset-0 z-[100] bg-black hidden flex-col">
+        <div class="p-4 flex items-center justify-between border-b border-white/10 bg-[#0F0F0F]">
+            <div class="flex items-center gap-3">
+                <button onclick="closeMobileDetailStack()" class="p-2 text-white/70 hover:text-white bg-white/10 rounded-full">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                </button>
+                <h2 id="stack-detail-symbol" class="text-xl font-bold tracking-tight"></h2>
+            </div>
+            <div class="text-xs text-white/50 px-3 py-1 bg-white/5 rounded-full">Swipe Cards →</div>
+        </div>
+        
+        <!-- Horizontal Carousel for Widgets -->
+        <div class="flex-1 overflow-x-auto overflow-y-hidden flex snap-x snap-mandatory hide-scrollbar">
+            
+            <!-- 1. Overview Chart -->
+            <div class="w-full h-full flex-shrink-0 snap-center p-4">
+                <div class="glass-panel w-full h-full rounded-2xl border border-white/10 p-1">
+                    <div id="stack-tv-overview" class="w-full h-full rounded-xl overflow-hidden"></div>
+                </div>
+            </div>
+
+            <!-- 2. Qualitative Summaries -->
+            <div class="w-full h-full flex-shrink-0 snap-center p-4 flex flex-col justify-center">
+                <div class="glass-panel w-full rounded-2xl border border-white/10 p-6 max-h-full overflow-y-auto">
+                    <h3 class="text-xs font-semibold text-white/50 uppercase tracking-wider mb-6">Retail Sentiment Summary</h3>
+                    <div id="stack-summaries-container" class="space-y-6"></div>
+                </div>
+            </div>
+
+            <!-- 3. Technicals -->
+            <div class="w-full h-full flex-shrink-0 snap-center p-4">
+                <div class="glass-panel w-full h-full rounded-2xl border border-white/10 p-1">
+                    <div id="stack-tv-technical" class="w-full h-full rounded-xl overflow-hidden"></div>
+                </div>
+            </div>
+
+            <!-- 4. Financials -->
+            <div class="w-full h-full flex-shrink-0 snap-center p-4">
+                <div class="glass-panel w-full h-full rounded-2xl border border-white/10 p-1">
+                    <div id="stack-tv-financials" class="w-full h-full rounded-xl overflow-hidden"></div>
+                </div>
+            </div>
+
+            <!-- 5. News -->
+            <div class="w-full h-full flex-shrink-0 snap-center p-4">
+                <div class="glass-panel w-full h-full rounded-2xl border border-white/10 p-1">
+                    <div id="stack-tv-timeline" class="w-full h-full rounded-xl overflow-hidden"></div>
+                </div>
+            </div>
+
+            <!-- 6. Info -->
+            <div class="w-full h-full flex-shrink-0 snap-center p-4">
+                <div class="glass-panel w-full h-full rounded-2xl border border-white/10 p-1">
+                    <div id="stack-tv-info" class="w-full h-full rounded-xl overflow-hidden"></div>
+                </div>
+            </div>
+
+            <!-- 7. Quant Metrics -->
+            <div class="w-full h-full flex-shrink-0 snap-center p-4">
+                <div class="glass-panel w-full h-full rounded-2xl border border-white/10 p-6 overflow-y-auto">
+                    <h3 class="text-xs font-semibold text-white/50 uppercase tracking-wider mb-6">Quantitative Metrics</h3>
+                    <div id="stack-metrics-grid" class="grid grid-cols-2 gap-4 text-sm"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modals (Summary & Glossary) -->
     <div id="summary-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
         <div class="glass-panel p-6 md:p-8 rounded-2xl border border-white/10 max-w-3xl w-full relative shadow-2xl flex flex-col min-h-[300px]">
-            <!-- Close Button -->
             <button onclick="closeSummaryModal()" class="absolute top-4 right-4 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-colors z-10">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
-            
-            <div class="mb-2 text-center mt-2">
-                <span class="text-xs font-semibold text-white/50 uppercase tracking-wider">Retail Sentiment Summary</span>
-            </div>
-            
+            <div class="mb-2 text-center mt-2"><span class="text-xs font-semibold text-white/50 uppercase tracking-wider">Retail Sentiment Summary</span></div>
             <div class="flex items-center justify-between mt-4 flex-1">
-                <!-- Left Arrow -->
-                <button onclick="prevSummary()" class="p-2 rounded-full hover:bg-white/10 transition-colors z-10 flex-shrink-0 text-white/50 hover:text-white">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-                </button>
-
+                <button onclick="prevSummary()" class="p-2 rounded-full hover:bg-white/10 transition-colors z-10 flex-shrink-0 text-white/50 hover:text-white"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
                 <div class="flex-1 px-4 md:px-8 text-center flex flex-col max-h-[60vh]">
-                    <h3 id="modal-title" class="text-xl font-bold mb-6 uppercase tracking-widest text-emerald-400">Short Term Bull</h3>
-                    <div class="overflow-y-auto pr-2 custom-scrollbar text-left flex-1 pb-6">
-                        <p id="modal-text" class="text-base md:text-lg leading-relaxed text-white/90 whitespace-pre-wrap">Summary text will appear here.</p>
-                    </div>
+                    <h3 id="modal-title" class="text-xl font-bold mb-6 uppercase tracking-widest text-emerald-400"></h3>
+                    <div class="overflow-y-auto pr-2 custom-scrollbar text-left flex-1 pb-6"><p id="modal-text" class="text-base md:text-lg leading-relaxed text-white/90 whitespace-pre-wrap"></p></div>
                 </div>
-
-                <!-- Right Arrow -->
-                <button onclick="nextSummary()" class="p-2 rounded-full hover:bg-white/10 transition-colors z-10 flex-shrink-0 text-white/50 hover:text-white">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
-                </button>
+                <button onclick="nextSummary()" class="p-2 rounded-full hover:bg-white/10 transition-colors z-10 flex-shrink-0 text-white/50 hover:text-white"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
             </div>
-
-            <!-- Modal Pagination Dots -->
             <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5">
                 <div id="modal-dot-0" class="w-1.5 h-1.5 rounded-full bg-white/80 transition-colors duration-300"></div>
                 <div id="modal-dot-1" class="w-1.5 h-1.5 rounded-full bg-white/20 transition-colors duration-300"></div>
@@ -360,17 +425,14 @@
         </div>
     </div>
 
-    <!-- Glossary Modal -->
     <div id="glossary-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
         <div class="glass-panel p-6 md:p-8 rounded-2xl border border-white/10 max-w-4xl w-full relative shadow-2xl flex flex-col max-h-[85vh]">
-            <!-- Close Button -->
             <button onclick="closeGlossaryModal()" class="absolute top-4 right-4 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-colors z-10">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
-            
             <h3 class="text-xl font-bold mb-6 uppercase tracking-widest text-emerald-400">Clinical Glossary</h3>
-            
             <div class="overflow-y-auto pr-4 custom-scrollbar text-sm md:text-base text-white/80 space-y-6 pb-6">
+                <!-- Content Omitted for brevity in exact representation, matching definitions provided previously -->
                 <div>
                     <h4 class="font-bold text-white mb-3 text-lg">1. Core Sentiment Metrics (Single-Day Snapshot)</h4>
                     <ul class="space-y-4">
@@ -381,7 +443,6 @@
                         <li><strong class="text-white">Polarization Index:</strong> A metric measuring the concentration of extreme sentiment (Strong Bull + Strong Bear) relative to total discussion volume across both time horizons. High values indicate highly contested, volatile equities; low values indicate consensus or a lack of aggressive directional bias.</li>
                     </ul>
                 </div>
-                
                 <div>
                     <h4 class="font-bold text-white mb-3 text-lg">2. Time-Series Metrics (Historical 21-Day Rolling Math)</h4>
                     <ul class="space-y-4">
@@ -391,7 +452,6 @@
                         <li><strong class="text-white">Setup Consistency (Duration):</strong> An integer counter tracking the number of consecutive days a stock has maintained its current Trading_Setup tag. Used to filter out 1-day noise anomalies and identify sustained, proven conviction.</li>
                     </ul>
                 </div>
-
                 <div>
                     <h4 class="font-bold text-white mb-3 text-lg">3. Categorical & Qualitative Definitions</h4>
                     <ul class="space-y-4">
@@ -421,16 +481,20 @@
     </div>
 
     <script>
-        const mockCsvData = `Date,Symbol,Total Mentions,stocks,wallstreetbets,options,ST Sentiment,LT Sentiment,Trading_Setup,Trajectory_Setup,ST_NSS_Norm,LT_NSS_Norm,Setup_Duration,RVol,ST Bull Summary,ST Bear Summary,LT Bull Summary,LT Bear Summary,Value_Score,Selected_Seeds
-2026-04-10,AAOI,8,2,6,0,Very Bull,Very Bull,Breakout,Upward,1.0,1.0,1,1.5,Strong upside momentum detected on recent earnings.,Overbought conditions might trigger slight pullback.,Positioned well for next gen fiber rollouts.,Supply chain constraints remain a risk factor.,-0.6,Steady Hype Seeds
-2026-04-10,AAPL,150,50,80,20,Bull,Bull,Consolidation,Stable,0.8,0.7,3,0.9,Approaching key support levels offering entry point.,Regulatory headwinds continue to suppress short term growth.,Services revenue expanding margins steadily.,Hardware supercycle relies heavily on uncertain consumer demand.,0.3,Steady Value Seeds`;
-
+        // Data & Core State
         let globalData = [];
         let filteredData = [];
         let currentSymbol = null;
         let subredditsList = [];
 
-        // Summary Card State
+        // Mobile View State ('list' or 'stack')
+        let currentMobileMode = 'list';
+        
+        // Tinder Stack State
+        let stackIndex = 0;
+        let topCardEl = null;
+
+        // Desktop Summary Card State
         let summaryIdx = 0;
         let currentSummaries = [
             { title: "Short Term Bull", text: "", color: "text-emerald-400" },
@@ -450,15 +514,12 @@
                 const el = document.getElementById(f === 'sort-order' ? f : `filter-${f}`);
                 if (el) el.addEventListener('change', applyFilters);
             });
-            
             document.getElementById('filter-ticker').addEventListener('input', applyFilters);
         }
 
         async function loadData() {
             const url = 'Today_Final_Signals.csv';
-            const listContainer = document.getElementById('stock-list');
-
-            listContainer.innerHTML = '<div class="text-center text-white/50 text-sm mt-10">Fetching remote data...</div>';
+            document.getElementById('stock-list').innerHTML = '<div class="text-center text-white/50 text-sm mt-10">Fetching remote data...</div>';
             
             try {
                 const response = await fetch(url);
@@ -466,11 +527,7 @@
                 const text = await response.text();
                 parseData(text);
             } catch (error) {
-                console.error("Error fetching CSV:", error);
-                listContainer.innerHTML = '<div class="text-center text-rose-400 text-sm mt-10">Failed to load CSV. Reverting to mock data.</div>';
-                setTimeout(() => {
-                    parseData(mockCsvData);
-                }, 1500);
+                console.error("Error fetching CSV. Please verify data source.");
             }
         }
 
@@ -493,16 +550,13 @@
             const ltSents = new Set();
             const trajs = new Set();
 
-            // Dynamically identify subreddits based on column position (between Total Mentions and ST Sentiment related fields)
             if (globalData.length > 0) {
                 const keys = Object.keys(globalData[0]);
                 const startIdx = keys.indexOf('Total Mentions');
                 const endIdx = keys.findIndex(k => k.startsWith('ST ') || k === 'ST Sentiment');
-                
                 if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx + 1) {
                     subredditsList = keys.slice(startIdx + 1, endIdx);
                 } else {
-                    // Fallback to known subreddits if headers differ
                     const knownSubs = ['stocks', 'stockmarket', 'ValueInvesting', 'SecurityAnalysis', 'options', 'unusual_whales', 'Daytrading', 'swingtrading', 'wallstreetbets', 'stockstobuytoday', 'DeepMarketScan', 'investing', 'thetagang', 'smallstreetbets'];
                     subredditsList = keys.filter(k => knownSubs.includes(k));
                 }
@@ -531,7 +585,6 @@
                 subSelect.appendChild(opt);
             });
 
-            // Dynamically populate sort-order dropdown with numerical metrics
             const sortSelect = document.getElementById('sort-order');
             sortSelect.innerHTML = `
                 <option value="Total Mentions-desc">Mentions (High to Low)</option>
@@ -559,16 +612,8 @@
 
             Array.from(numericCols).sort().forEach(col => {
                 const cleanName = col.replace(/_/g, ' ');
-                const optDesc = document.createElement('option');
-                optDesc.value = `${col}-desc`;
-                optDesc.textContent = `${cleanName} (High to Low)`;
-                
-                const optAsc = document.createElement('option');
-                optAsc.value = `${col}-asc`;
-                optAsc.textContent = `${cleanName} (Low to High)`;
-                
-                sortSelect.appendChild(optDesc);
-                sortSelect.appendChild(optAsc);
+                sortSelect.innerHTML += `<option value="${col}-desc">${cleanName} (High to Low)</option>`;
+                sortSelect.innerHTML += `<option value="${col}-asc">${cleanName} (Low to High)</option>`;
             });
         }
 
@@ -601,41 +646,54 @@
                 const stSentMatch = stSent === 'All' || row['ST Sentiment'] === stSent;
                 const ltSentMatch = ltSent === 'All' || row['LT Sentiment'] === ltSent;
                 const trajMatch = traj === 'All' || row['Trajectory_Setup'] === traj;
-                
                 let subredditMatch = true;
-                if (subreddit !== 'All') {
-                    subredditMatch = (parseFloat(row[subreddit]) || 0) > 0;
-                }
+                if (subreddit !== 'All') subredditMatch = (parseFloat(row[subreddit]) || 0) > 0;
 
                 return symbolMatch && seedsMatch && setupMatch && stSentMatch && ltSentMatch && trajMatch && subredditMatch;
             });
 
-            // Sorting logic
             filteredData.sort((a, b) => {
-                if (sortOrder === 'alpha') {
-                    return a.Symbol.localeCompare(b.Symbol);
-                } else if (sortOrder) {
+                if (sortOrder === 'alpha') return a.Symbol.localeCompare(b.Symbol);
+                if (sortOrder) {
                     const lastDashIdx = sortOrder.lastIndexOf('-');
                     if (lastDashIdx === -1) return 0;
-                    
                     const col = sortOrder.substring(0, lastDashIdx);
                     const order = sortOrder.substring(lastDashIdx + 1);
-                    
                     const valA = parseFloat(a[col]) || 0;
                     const valB = parseFloat(b[col]) || 0;
-                    
-                    if (order === 'desc') {
-                        return valB - valA;
-                    } else {
-                        return valA - valB;
-                    }
+                    return order === 'desc' ? valB - valA : valA - valB;
                 }
                 return 0;
             });
 
+            stackIndex = 0;
             renderList();
+            renderStack();
         }
 
+        // --- Mobile View Mode Toggle ---
+        function setMobileMode(mode) {
+            currentMobileMode = mode;
+            const btnList = document.getElementById('btn-view-list');
+            const btnStack = document.getElementById('btn-view-stack');
+            const listContainer = document.getElementById('stock-list');
+            const stackContainer = document.getElementById('stock-stack');
+
+            if (mode === 'list') {
+                btnList.className = 'flex-1 py-2 text-xs font-semibold rounded-md bg-white/10 text-white transition-all shadow-sm';
+                btnStack.className = 'flex-1 py-2 text-xs font-semibold rounded-md text-white/50 hover:text-white transition-all';
+                listContainer.classList.remove('hidden');
+                stackContainer.classList.add('hidden');
+            } else {
+                btnStack.className = 'flex-1 py-2 text-xs font-semibold rounded-md bg-white/10 text-white transition-all shadow-sm';
+                btnList.className = 'flex-1 py-2 text-xs font-semibold rounded-md text-white/50 hover:text-white transition-all';
+                stackContainer.classList.remove('hidden');
+                listContainer.classList.add('hidden');
+                renderStack(); // Ensure fresh render for dimensions
+            }
+        }
+
+        // --- List View Renderer ---
         function renderList() {
             const container = document.getElementById('stock-list');
             container.innerHTML = '';
@@ -648,7 +706,6 @@
             filteredData.forEach(row => {
                 const div = document.createElement('div');
                 const isSelected = currentSymbol === row.Symbol;
-                
                 div.className = `p-4 rounded-xl cursor-pointer transition-all border ${isSelected ? 'bg-white/10 border-white/30' : 'bg-white/[0.02] border-white/5 hover:bg-white/5'} flex justify-between items-center`;
                 
                 let sentColor = 'text-white/50';
@@ -658,8 +715,7 @@
 
                 const seedText = row['Selected_Seeds'] || 'Uncategorized';
                 const valueScore = parseFloat(row['Value_Score']) || 0;
-                const clampedScore = Math.max(-1, Math.min(1, valueScore));
-                const rotation = clampedScore * 90; // -1 -> -90deg, 1 -> 90deg
+                const rotation = Math.max(-1, Math.min(1, valueScore)) * 90;
 
                 div.innerHTML = `
                     <div class="flex-[1.2] min-w-0 pr-2">
@@ -667,17 +723,12 @@
                         <div class="text-[10px] text-white/50 mt-1 truncate">${row['Trading_Setup'] || 'N/A'}</div>
                         <div class="text-[10px] text-emerald-400/80 mt-0.5 truncate">${seedText}</div>
                     </div>
-                    
                     <div class="flex-1 flex flex-col items-center justify-center border-x border-white/10 px-2 mx-1">
                         <div class="relative w-[52px] h-[26px] mt-1">
                             <svg viewBox="0 0 100 50" class="w-full h-full overflow-visible">
-                                <defs>
-                                    <linearGradient id="grad-${row.Symbol}" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" stop-color="#fb7185" />
-                                        <stop offset="50%" stop-color="#64748b" />
-                                        <stop offset="100%" stop-color="#34d399" />
-                                    </linearGradient>
-                                </defs>
+                                <defs><linearGradient id="grad-${row.Symbol}" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#fb7185" /><stop offset="50%" stop-color="#64748b" /><stop offset="100%" stop-color="#34d399" />
+                                </linearGradient></defs>
                                 <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="url(#grad-${row.Symbol})" stroke-width="12" stroke-linecap="round"/>
                                 <polygon points="46,55 54,55 50,5" fill="#ffffff" transform="rotate(${rotation}, 50, 50)"/>
                                 <circle cx="50" cy="50" r="6" fill="#ffffff" />
@@ -686,27 +737,197 @@
                             <div class="absolute -bottom-3 right-[-8px] text-[8px] text-white/40 tracking-tighter">VALUE</div>
                         </div>
                     </div>
-                    
                     <div class="flex-[0.8] text-right pl-2">
                         <div class="text-xs font-medium ${sentColor} truncate">${st}</div>
                         <div class="text-[10px] text-white/40 mt-1 truncate">Vol: ${row.RVol || '-'}</div>
                         <div class="text-[10px] text-white/40 mt-0.5 truncate">Men: ${row['Total Mentions'] || 0}</div>
                     </div>
                 `;
-                
-                div.onclick = () => selectStock(row);
+                div.onclick = () => selectStockDesktop(row);
                 container.appendChild(div);
             });
         }
 
-        function selectStock(row) {
+        // --- Tinder Stack View Logic ---
+        function renderStack() {
+            const container = document.getElementById('stock-stack');
+            container.innerHTML = '';
+            
+            if (filteredData.length === 0) {
+                container.innerHTML = '<div class="text-white/50 text-sm">No signals match criteria.</div>';
+                return;
+            }
+
+            // Render up to 3 cards for visual stack depth
+            for (let i = 0; i < Math.min(3, filteredData.length); i++) {
+                const dataIndex = (stackIndex + i) % filteredData.length;
+                const row = filteredData[dataIndex];
+                
+                const card = document.createElement('div');
+                card.className = 'swipe-card glass-panel rounded-3xl border border-white/20 p-6 flex flex-col shadow-2xl';
+                
+                // Stack positioning physics
+                const scale = 1 - (i * 0.05);
+                const translateY = i * 15;
+                const zIndex = 50 - i;
+                
+                card.style.transform = `scale(${scale}) translateY(${translateY}px)`;
+                card.style.zIndex = zIndex;
+                if(i > 0) card.style.opacity = 1 - (i * 0.2);
+                
+                const valueScore = parseFloat(row['Value_Score']) || 0;
+                const rotation = Math.max(-1, Math.min(1, valueScore)) * 90;
+                
+                let sentColor = 'text-white/50';
+                if ((row['ST Sentiment']||'').includes('Bull')) sentColor = 'text-emerald-400';
+                if ((row['ST Sentiment']||'').includes('Bear')) sentColor = 'text-rose-400';
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h2 class="text-4xl font-bold tracking-tighter">${row.Symbol}</h2>
+                            <p class="text-emerald-400 text-sm font-medium mt-1">${row['Selected_Seeds'] || 'Uncategorized'}</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="px-3 py-1 bg-white/10 rounded-full text-xs font-semibold ${sentColor}">${row['ST Sentiment'] || 'N/A'}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 flex flex-col justify-center items-center py-6 border-y border-white/10 my-4">
+                        <span class="text-xs text-white/50 uppercase tracking-widest mb-4">Volume Quality</span>
+                        <div class="relative w-[140px] h-[70px]">
+                            <svg viewBox="0 0 100 50" class="w-full h-full overflow-visible">
+                                <defs><linearGradient id="stack-grad-${row.Symbol}" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#fb7185" /><stop offset="50%" stop-color="#64748b" /><stop offset="100%" stop-color="#34d399" />
+                                </linearGradient></defs>
+                                <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="url(#stack-grad-${row.Symbol})" stroke-width="12" stroke-linecap="round"/>
+                                <polygon points="47,55 53,55 50,5" fill="#ffffff" transform="rotate(${rotation}, 50, 50)"/>
+                                <circle cx="50" cy="50" r="5" fill="#ffffff" />
+                            </svg>
+                            <div class="absolute -bottom-6 left-[-10px] text-xs font-semibold text-white/60">HYPE</div>
+                            <div class="absolute -bottom-6 right-[-10px] text-xs font-semibold text-white/60">VALUE</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mt-auto">
+                        <div class="bg-white/5 p-3 rounded-xl text-center">
+                            <div class="text-[10px] text-white/50 uppercase">Setup</div>
+                            <div class="font-semibold text-sm truncate">${row['Trading_Setup'] || 'N/A'}</div>
+                        </div>
+                        <div class="bg-white/5 p-3 rounded-xl text-center">
+                            <div class="text-[10px] text-white/50 uppercase">Mentions</div>
+                            <div class="font-semibold text-sm">${row['Total Mentions'] || 0}</div>
+                        </div>
+                    </div>
+                `;
+
+                if (i === 0) {
+                    topCardEl = card;
+                    setupSwipeEngine(card, row);
+                }
+                
+                container.appendChild(card);
+            }
+        }
+
+        // --- Custom Touch Physics Engine ---
+        function setupSwipeEngine(card, row) {
+            let isDragging = false;
+            let startX = 0, startY = 0, currentX = 0, currentY = 0;
+            const threshold = window.innerWidth * 0.25;
+
+            card.addEventListener('touchstart', (e) => {
+                isDragging = true;
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                card.classList.remove('animating');
+            }, {passive: true});
+
+            card.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                currentX = e.touches[0].clientX - startX;
+                currentY = e.touches[0].clientY - startY;
+                
+                // Prevent vertical scroll if swiping horizontally
+                if (Math.abs(currentX) > Math.abs(currentY) && e.cancelable) e.preventDefault();
+
+                const rotation = currentX * 0.05;
+                card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotation}deg)`;
+            }, {passive: false});
+
+            card.addEventListener('touchend', (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                
+                // Tap detection for opening detail stack
+                if (Math.abs(currentX) < 10 && Math.abs(currentY) < 10) {
+                    card.style.transform = 'scale(1) translateY(0px)';
+                    openMobileDetailStack(row);
+                    return;
+                }
+
+                card.classList.add('animating');
+                if (Math.abs(currentX) > threshold) {
+                    // Eject card
+                    const endX = currentX > 0 ? window.innerWidth : -window.innerWidth;
+                    card.style.transform = `translate(${endX}px, ${currentY}px) rotate(${currentX * 0.1}deg)`;
+                    card.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        stackIndex = (stackIndex + 1) % filteredData.length;
+                        renderStack();
+                    }, 250); // Match animation duration
+                } else {
+                    // Snap back
+                    card.style.transform = 'scale(1) translateY(0px) rotate(0deg)';
+                }
+            });
+        }
+
+        // --- Mobile Detail Stack (Fullscreen Carousel) ---
+        function openMobileDetailStack(row) {
+            currentSymbol = row.Symbol;
+            document.getElementById('mobile-detail-stack').classList.replace('hidden', 'flex');
+            document.getElementById('stack-detail-symbol').textContent = row.Symbol;
+
+            // Populate Summaries Grid (Mobile specific representation)
+            const sumContainer = document.getElementById('stack-summaries-container');
+            sumContainer.innerHTML = `
+                <div class="mb-4"><h4 class="text-[10px] text-emerald-400 uppercase tracking-widest mb-1">ST Bull</h4><p class="text-sm text-white/90">${row['ST Bull Summary'] || 'N/A'}</p></div>
+                <div class="mb-4"><h4 class="text-[10px] text-rose-400 uppercase tracking-widest mb-1">ST Bear</h4><p class="text-sm text-white/90">${row['ST Bear Summary'] || 'N/A'}</p></div>
+                <div class="mb-4"><h4 class="text-[10px] text-emerald-400 uppercase tracking-widest mb-1">LT Bull</h4><p class="text-sm text-white/90">${row['LT Bull Summary'] || 'N/A'}</p></div>
+                <div><h4 class="text-[10px] text-rose-400 uppercase tracking-widest mb-1">LT Bear</h4><p class="text-sm text-white/90">${row['LT Bear Summary'] || 'N/A'}</p></div>
+            `;
+
+            // Populate Metrics (Mobile specific)
+            const metricGrid = document.getElementById('stack-metrics-grid');
+            metricGrid.innerHTML = '';
+            const excludedKeys = ['Symbol', 'Date', 'ST Bull Summary', 'ST Bear Summary', 'LT Bull Summary', 'LT Bear Summary', 'Selected_Seeds'];
+            Object.entries(row).forEach(([key, value]) => {
+                if (excludedKeys.includes(key) || !value || value.length > 50) return;
+                metricGrid.innerHTML += `<div class="flex flex-col"><span class="text-[10px] text-white/40 uppercase tracking-wider truncate">${key.replace(/_/g, ' ')}</span><span class="font-medium text-white/90 truncate mt-0.5">${value}</span></div>`;
+            });
+
+            // Inject TV Widgets into Stack Containers
+            injectTVWidgets(row.Symbol, 'stack');
+        }
+
+        function closeMobileDetailStack() {
+            document.getElementById('mobile-detail-stack').classList.replace('flex', 'hidden');
+            // Clear TV containers to prevent memory leaks or dual-render bugs
+            ['overview','technical','financials','timeline','info'].forEach(id => {
+                document.getElementById(`stack-tv-${id}`).innerHTML = '';
+            });
+        }
+
+        // --- Desktop Operations ---
+        function selectStockDesktop(row) {
             currentSymbol = row.Symbol;
             renderList(); 
             
             document.getElementById('empty-state').classList.add('hidden');
             document.getElementById('dashboard-content').classList.remove('hidden');
             
-            // Trigger Mobile View Router Logic
             if (window.innerWidth <= 768) {
                 document.body.classList.add('view-dashboard');
                 document.getElementById('mobile-ticker-title').textContent = row.Symbol;
@@ -716,44 +937,44 @@
             document.getElementById('dash-symbol').textContent = row.Symbol;
             document.getElementById('dash-date').textContent = row.Date || 'Latest Data';
 
-            // Extract Summaries
-            currentSummaries[0].text = row['ST Bull Summary'] || 'No distinct Short Term Bullish factors recorded.';
-            currentSummaries[1].text = row['ST Bear Summary'] || 'No distinct Short Term Bearish factors recorded.';
-            currentSummaries[2].text = row['LT Bull Summary'] || 'No distinct Long Term Bullish factors recorded.';
-            currentSummaries[3].text = row['LT Bear Summary'] || 'No distinct Long Term Bearish factors recorded.';
-            
-            // Reset to first slide & render
+            currentSummaries[0].text = row['ST Bull Summary'] || 'N/A';
+            currentSummaries[1].text = row['ST Bear Summary'] || 'N/A';
+            currentSummaries[2].text = row['LT Bull Summary'] || 'N/A';
+            currentSummaries[3].text = row['LT Bear Summary'] || 'N/A';
             summaryIdx = 0;
             renderSummaryCard();
 
-            // Build Badges
             const badgesContainer = document.getElementById('dash-badges');
-            badgesContainer.innerHTML = '';
             const createBadge = (text, type) => {
-                if(!text || text === 'None' || text === 'N/A') return;
+                if(!text || text === 'None' || text === 'N/A') return '';
                 let bg = 'bg-white/10 text-white';
                 if(text.includes('Bull')) bg = 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
                 if(text.includes('Bear')) bg = 'bg-rose-500/20 text-rose-400 border border-rose-500/30';
                 return `<span class="px-3 py-1 rounded-full text-xs font-semibold ${bg}">${text}</span>`;
             };
             
-            const badgesHTML = [
+            badgesContainer.innerHTML = [
                 createBadge(row['Selected_Seeds'], 'seed'),
                 createBadge(row['ST Sentiment'], 'st'),
                 createBadge(row['LT Sentiment'], 'lt'),
                 createBadge(row['Trading_Setup'], 'setup')
             ].filter(Boolean).join('');
-            badgesContainer.innerHTML = badgesHTML;
 
-            renderMetricsGrid(row);
-            injectTVWidgets(row.Symbol);
+            const grid = document.getElementById('metrics-grid');
+            grid.innerHTML = '';
+            const excludedKeys = ['Symbol', 'Date', 'ST Bull Summary', 'ST Bear Summary', 'LT Bull Summary', 'LT Bear Summary', 'Selected_Seeds'];
+            Object.entries(row).forEach(([key, value]) => {
+                if (excludedKeys.includes(key) || !value || value.length > 50) return;
+                grid.innerHTML += `<div class="flex flex-col"><span class="text-[10px] text-white/40 uppercase tracking-wider truncate">${key.replace(/_/g, ' ')}</span><span class="font-medium text-white/90 truncate mt-0.5">${value}</span></div>`;
+            });
+
+            injectTVWidgets(row.Symbol, '');
         }
 
-        // --- Filters Toggle ---
+        // --- Common Helpers ---
         function toggleFilters() {
             const content = document.getElementById('filters-content');
             const chevron = document.getElementById('filters-chevron');
-            
             if (content.classList.contains('hidden')) {
                 content.classList.remove('hidden');
                 chevron.style.transform = 'rotate(180deg)';
@@ -763,212 +984,75 @@
             }
         }
 
-        // --- Summary Card Navigation & Modal ---
-        function renderSummaryCard() {
-            const data = currentSummaries[summaryIdx];
-            
-            // Update Card
-            const titleEl = document.getElementById('summary-title');
-            titleEl.textContent = data.title;
-            titleEl.className = `text-base font-bold mb-4 uppercase tracking-widest ${data.color}`;
-            document.getElementById('summary-text').textContent = data.text;
-            
-            // Update Modal (in case it is open)
-            const modalTitleEl = document.getElementById('modal-title');
-            modalTitleEl.textContent = data.title;
-            modalTitleEl.className = `text-xl font-bold mb-6 uppercase tracking-widest ${data.color}`;
-            document.getElementById('modal-text').textContent = data.text;
-            
-            // Update dots
-            for(let i=0; i<4; i++) {
-                const dot = document.getElementById(`dot-${i}`);
-                const modalDot = document.getElementById(`modal-dot-${i}`);
-                if(i === summaryIdx) {
-                    dot.classList.replace('bg-white/20', 'bg-white/80');
-                    if (modalDot) modalDot.classList.replace('bg-white/20', 'bg-white/80');
-                } else {
-                    dot.classList.replace('bg-white/80', 'bg-white/20');
-                    if (modalDot) modalDot.classList.replace('bg-white/80', 'bg-white/20');
-                }
-            }
-        }
-
-        function nextSummary() { 
-            summaryIdx = (summaryIdx + 1) % 4; 
-            renderSummaryCard(); 
-        }
-
-        function prevSummary() { 
-            summaryIdx = (summaryIdx - 1 + 4) % 4; 
-            renderSummaryCard(); 
-        }
-
-        function openSummaryModal() {
-            renderSummaryCard();
-            document.getElementById('summary-modal').classList.remove('hidden');
-        }
-
-        function closeSummaryModal() {
-            document.getElementById('summary-modal').classList.add('hidden');
-        }
-
-        // --- Glossary Modal ---
-        function openGlossaryModal() {
-            document.getElementById('glossary-modal').classList.remove('hidden');
-        }
-
-        function closeGlossaryModal() {
-            document.getElementById('glossary-modal').classList.add('hidden');
-        }
-
-        // Close modals on background click
-        document.getElementById('summary-modal').addEventListener('click', function(e) {
-            if (e.target === this) closeSummaryModal();
-        });
-        document.getElementById('glossary-modal').addEventListener('click', function(e) {
-            if (e.target === this) closeGlossaryModal();
-        });
-
-        // --- Collapsible Metrics ---
-        function toggleMetrics() {
-            const content = document.getElementById('metrics-content');
-            const chevron = document.getElementById('metrics-chevron');
-            
-            if (content.classList.contains('hidden')) {
-                content.classList.remove('hidden');
-                chevron.style.transform = 'rotate(180deg)';
-            } else {
-                content.classList.add('hidden');
-                chevron.style.transform = 'rotate(0deg)';
-            }
-        }
-
-        function renderMetricsGrid(dataRow) {
-            const grid = document.getElementById('metrics-grid');
-            grid.innerHTML = '';
-            
-            // Exclude text-heavy or redundant columns from the quantitative grid
-            const excludedKeys = ['Symbol', 'Date', 'ST Bull Summary', 'ST Bear Summary', 'LT Bull Summary', 'LT Bear Summary', 'ST_Bullish_Text', 'ST_Bearish_Text', 'LT_Bullish_Text', 'LT_Bearish_Text', 'Selected_Seeds'];
-            
-            Object.entries(dataRow).forEach(([key, value]) => {
-                if (excludedKeys.includes(key) || !value || value.length > 50) return;
-                
-                const item = document.createElement('div');
-                item.className = 'flex flex-col';
-                item.innerHTML = `
-                    <span class="text-[10px] text-white/40 uppercase tracking-wider truncate" title="${key}">${key.replace(/_/g, ' ')}</span>
-                    <span class="font-medium text-white/90 truncate mt-0.5" title="${value}">${value}</span>
-                `;
-                grid.appendChild(item);
-            });
-        }
-
-        // --- Mobile Navigation ---
         function backToList() {
             document.body.classList.remove('view-dashboard');
             currentSymbol = null;
-            renderList(); // clear highlight from list
+            renderList();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // --- TradingView Injections ---
-        function injectTVWidgets(symbol) {
+        function renderSummaryCard() {
+            const data = currentSummaries[summaryIdx];
+            document.getElementById('summary-title').textContent = data.title;
+            document.getElementById('summary-title').className = `text-base font-bold mb-4 uppercase tracking-widest ${data.color}`;
+            document.getElementById('summary-text').textContent = data.text;
+            
+            document.getElementById('modal-title').textContent = data.title;
+            document.getElementById('modal-title').className = `text-xl font-bold mb-6 uppercase tracking-widest ${data.color}`;
+            document.getElementById('modal-text').textContent = data.text;
+            
+            for(let i=0; i<4; i++) {
+                document.getElementById(`dot-${i}`).classList.replace(i===summaryIdx?'bg-white/20':'bg-white/80', i===summaryIdx?'bg-white/80':'bg-white/20');
+                document.getElementById(`modal-dot-${i}`).classList.replace(i===summaryIdx?'bg-white/20':'bg-white/80', i===summaryIdx?'bg-white/80':'bg-white/20');
+            }
+        }
+
+        function nextSummary() { summaryIdx = (summaryIdx + 1) % 4; renderSummaryCard(); }
+        function prevSummary() { summaryIdx = (summaryIdx - 1 + 4) % 4; renderSummaryCard(); }
+        function openSummaryModal() { renderSummaryCard(); document.getElementById('summary-modal').classList.remove('hidden'); }
+        function closeSummaryModal() { document.getElementById('summary-modal').classList.add('hidden'); }
+        function openGlossaryModal() { document.getElementById('glossary-modal').classList.remove('hidden'); }
+        function closeGlossaryModal() { document.getElementById('glossary-modal').classList.add('hidden'); }
+
+        // --- TV Widget Injector ---
+        function injectTVWidgets(symbol, prefix = '') {
             const tvSymbol = `NASDAQ:${symbol}`;
+            const pfx = prefix ? `${prefix}-tv-` : 'tv-';
 
-            // Overview
-            renderTVWidget('tv-overview', 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js', {
-                "symbols": [[`${tvSymbol}|1D`]],
-                "chartOnly": false,
-                "width": "100%",
-                "height": "100%",
-                "locale": "en",
-                "colorTheme": "dark",
-                "autosize": true,
-                "showVolume": false,
-                "showMA": false,
-                "hideDateRanges": false,
-                "hideMarketStatus": false,
-                "hideSymbolLogo": false,
-                "scalePosition": "right",
-                "scaleMode": "Normal",
-                "fontFamily": "-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif",
-                "fontSize": "10",
-                "noTimeScale": false,
-                "valuesTracking": "1",
-                "changeMode": "price-and-percent",
-                "chartType": "area",
-                "backgroundColor": "rgba(0, 0, 0, 0)",
-                "lineWidth": 2,
-                "lineType": 0
+            renderTVWidget(`${pfx}overview`, 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js', {
+                "symbols": [[`${tvSymbol}|1D`]], "chartOnly": false, "width": "100%", "height": "100%", "locale": "en", "colorTheme": "dark", "autosize": true, "showVolume": false, "showMA": false, "hideDateRanges": false, "hideMarketStatus": false, "hideSymbolLogo": false, "scalePosition": "right", "scaleMode": "Normal", "fontFamily": "-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif", "fontSize": "10", "noTimeScale": false, "valuesTracking": "1", "changeMode": "price-and-percent", "chartType": "area", "backgroundColor": "rgba(0, 0, 0, 0)", "lineWidth": 2, "lineType": 0
             });
-
-            // Technical Analysis (Defaulting to 1 Day interval)
-            renderTVWidget('tv-technical', 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js', {
-                "interval": "1D",
-                "width": "100%",
-                "height": "100%",
-                "symbol": tvSymbol,
-                "showIntervalTabs": true,
-                "displayMode": "single",
-                "locale": "en",
-                "colorTheme": "dark",
-                "isTransparent": true
+            renderTVWidget(`${pfx}technical`, 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js', {
+                "interval": "1D", "width": "100%", "height": "100%", "symbol": tvSymbol, "showIntervalTabs": true, "displayMode": "single", "locale": "en", "colorTheme": "dark", "isTransparent": true
             });
-
-            // Financials
-            renderTVWidget('tv-financials', 'https://s3.tradingview.com/external-embedding/embed-widget-financials.js', {
-                "symbol": tvSymbol,
-                "width": "100%",
-                "height": "100%",
-                "colorTheme": "dark",
-                "isTransparent": true,
-                "displayMode": "regular",
-                "locale": "en"
+            renderTVWidget(`${pfx}financials`, 'https://s3.tradingview.com/external-embedding/embed-widget-financials.js', {
+                "symbol": tvSymbol, "width": "100%", "height": "100%", "colorTheme": "dark", "isTransparent": true, "displayMode": "regular", "locale": "en"
             });
-
-            // News Timeline
-            renderTVWidget('tv-timeline', 'https://s3.tradingview.com/external-embedding/embed-widget-timeline.js', {
-                "feedMode": "symbol",
-                "symbol": tvSymbol,
-                "width": "100%",
-                "height": "100%",
-                "colorTheme": "dark",
-                "isTransparent": true,
-                "displayMode": "regular",
-                "locale": "en"
+            renderTVWidget(`${pfx}timeline`, 'https://s3.tradingview.com/external-embedding/embed-widget-timeline.js', {
+                "feedMode": "symbol", "symbol": tvSymbol, "width": "100%", "height": "100%", "colorTheme": "dark", "isTransparent": true, "displayMode": "regular", "locale": "en"
             });
-
-            // Info Details
-            renderTVWidget('tv-info', 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js', {
-                "symbol": tvSymbol,
-                "width": "100%",
-                "height": "100%",
-                "colorTheme": "dark",
-                "isTransparent": true,
-                "locale": "en"
+            renderTVWidget(`${pfx}info`, 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js', {
+                "symbol": tvSymbol, "width": "100%", "height": "100%", "colorTheme": "dark", "isTransparent": true, "locale": "en"
             });
         }
 
         function renderTVWidget(containerId, scriptSrc, config) {
             const container = document.getElementById(containerId);
+            if (!container) return;
             container.innerHTML = ''; 
-
             const widgetContainer = document.createElement('div');
             widgetContainer.className = 'tradingview-widget-container';
             widgetContainer.style.height = '100%';
             widgetContainer.style.width = '100%';
-            
             const widgetDiv = document.createElement('div');
             widgetDiv.className = 'tradingview-widget-container__widget';
             widgetDiv.style.height = '100%';
             widgetDiv.style.width = '100%';
-
             const script = document.createElement('script');
             script.type = 'text/javascript';
             script.src = scriptSrc;
             script.async = true;
             script.textContent = JSON.stringify(config);
-            
             widgetContainer.appendChild(widgetDiv);
             widgetContainer.appendChild(script);
             container.appendChild(widgetContainer);
